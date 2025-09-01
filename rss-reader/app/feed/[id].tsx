@@ -70,6 +70,7 @@ export default function FeedArticlesScreen() {
         renderItem={renderItem}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        testID="articles-list"
       />
     </View>
   );

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, FlatList, StyleSheet, TextInput } from 'react-native';
+import { Alert, FlatList, Pressable, StyleSheet, TextInput } from 'react-native';
 import { Text, View } from '@/components/Themed';
 import { useAppContext } from '@/context/AppContext';
 import { FeedInfo } from '@/lib/types';
@@ -24,7 +24,7 @@ export default function FeedsScreen() {
   };
 
   const renderItem = ({ item }: { item: FeedInfo }) => (
-    <View style={styles.feedRow}>
+    <View style={styles.feedRow} testID="feed-row">
       <Link href={{ pathname: '/feed/[id]', params: { id: item.id } }} asChild>
         <View style={{ flex: 1 }}>
           <Text style={styles.feedTitle}>{item.title ?? item.url}</Text>
@@ -47,8 +47,11 @@ export default function FeedsScreen() {
           autoCapitalize="none"
           autoCorrect={false}
           style={styles.input}
+          testID="feed-url-input"
         />
-        <Text style={styles.addButton} onPress={onAdd}>Add</Text>
+        <Pressable accessibilityRole="button" testID="add-feed-button" onPress={onAdd}>
+          <Text style={styles.addButton}>Add</Text>
+        </Pressable>
       </View>
       <FlatList
         data={feeds}
@@ -56,6 +59,7 @@ export default function FeedsScreen() {
         renderItem={renderItem}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         ListEmptyComponent={<Text style={styles.empty}>Add a feed URL to begin</Text>}
+        testID="feeds-list"
       />
     </View>
   );

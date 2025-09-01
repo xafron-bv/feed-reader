@@ -36,12 +36,12 @@ export default function ArticleScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}> 
+    <ScrollView style={styles.container} contentContainerStyle={styles.content} testID="article-view"> 
       <Text style={styles.title}>{article.title}</Text>
       <View style={styles.metaRow}>
         <Text style={styles.meta}>{formatRelativeFromNow(article.pubDate)}</Text>
         <Pressable onPress={onBookmark}>
-          <Text style={styles.bookmark}>★ Bookmark</Text>
+          <Text style={styles.bookmark} testID="bookmark-toggle">★ Bookmark</Text>
         </Pressable>
       </View>
       {article.image ? (
