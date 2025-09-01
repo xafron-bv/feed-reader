@@ -1,31 +1,52 @@
-import { StyleSheet } from 'react-native';
-
-import EditScreenInfo from '@/components/EditScreenInfo';
+import React, { useEffect, useState } from 'react';
+import { FlatList, StyleSheet } from 'react-native';
 import { Text, View } from '@/components/Themed';
+import { useAppContext } from '@/context/AppContext';
+import { Article } from '@/lib/types';
+import { Link } from 'expo-router';
 
-export default function TabTwoScreen() {
+export default function BookmarksScreen() {
+  const { getBookmarkedArticles } = useAppContext();
+  const [articles, setArticles] = useState<Article[]>([]);
+
+  const load = async () => {
+    const a = await getBookmarkedArticles();
+    setArticles(a);
+  };
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const renderItem = ({ item }: { item: Article }) => (
+    <Link href={{ pathname: '/article', params: { id: item.id, feedId: item.feedId } }} asChild>
+      <View style={styles.row}>
+        <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
+        <Text style={styles.desc} numberOfLines={1}>{item.link}</Text>
+      </View>
+    </Link>
+  );
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Tab Two</Text>
-      <View style={styles.separator} lightColor="#eee" darkColor="rgba(255,255,255,0.1)" />
-      <EditScreenInfo path="app/(tabs)/two.tsx" />
+      <FlatList
+        data={articles}
+        keyExtractor={(a) => a.id}
+        renderItem={renderItem}
+        ItemSeparatorComponent={() => <View style={styles.separator} />}
+        ListEmptyComponent={<Text style={styles.empty}>No bookmarks yet</Text>}
+        onRefresh={load}
+        refreshing={false}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  separator: {
-    marginVertical: 30,
-    height: 1,
-    width: '80%',
-  },
+  container: { flex: 1, padding: 12 },
+  row: { paddingVertical: 10 },
+  title: { fontSize: 16, fontWeight: '600' },
+  desc: { color: '#666' },
+  separator: { height: 1, backgroundColor: '#eee' },
+  empty: { textAlign: 'center', color: '#888', marginTop: 40 },
 });

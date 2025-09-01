@@ -1,31 +1,75 @@
-import { StyleSheet } from 'react-native';
-
-import EditScreenInfo from '@/components/EditScreenInfo';
+import React, { useEffect, useState } from 'react';
+import { Alert, FlatList, StyleSheet, TextInput } from 'react-native';
 import { Text, View } from '@/components/Themed';
+import { useAppContext } from '@/context/AppContext';
+import { FeedInfo } from '@/lib/types';
+import { Link } from 'expo-router';
 
-export default function TabOneScreen() {
+export default function FeedsScreen() {
+  const { feeds, addFeedByUrl, removeFeed } = useAppContext();
+  const [newFeedUrl, setNewFeedUrl] = useState('');
+
+  const onAdd = async () => {
+    if (!newFeedUrl.trim()) return;
+    try {
+      await addFeedByUrl(newFeedUrl.trim());
+      setNewFeedUrl('');
+    } catch (e: any) {
+      Alert.alert('Error', e?.message ?? 'Failed to add feed');
+    }
+  };
+
+  const onDelete = async (feedId: string) => {
+    await removeFeed(feedId);
+  };
+
+  const renderItem = ({ item }: { item: FeedInfo }) => (
+    <View style={styles.feedRow}>
+      <Link href={{ pathname: '/feed/[id]', params: { id: item.id } }} asChild>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.feedTitle}>{item.title ?? item.url}</Text>
+          {item.description ? (
+            <Text style={styles.feedDesc} numberOfLines={1}>{item.description}</Text>
+          ) : null}
+        </View>
+      </Link>
+      <Text style={styles.link} onPress={() => onDelete(item.id)}>Delete</Text>
+    </View>
+  );
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Tab One</Text>
-      <View style={styles.separator} lightColor="#eee" darkColor="rgba(255,255,255,0.1)" />
-      <EditScreenInfo path="app/(tabs)/index.tsx" />
+      <View style={styles.addRow}>
+        <TextInput
+          placeholder="https://example.com/feed.xml"
+          value={newFeedUrl}
+          onChangeText={setNewFeedUrl}
+          autoCapitalize="none"
+          autoCorrect={false}
+          style={styles.input}
+        />
+        <Text style={styles.addButton} onPress={onAdd}>Add</Text>
+      </View>
+      <FlatList
+        data={feeds}
+        keyExtractor={(f) => f.id}
+        renderItem={renderItem}
+        ItemSeparatorComponent={() => <View style={styles.separator} />}
+        ListEmptyComponent={<Text style={styles.empty}>Add a feed URL to begin</Text>}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-  },
-  separator: {
-    marginVertical: 30,
-    height: 1,
-    width: '80%',
-  },
+  container: { flex: 1, padding: 12 },
+  addRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
+  input: { flex: 1, borderWidth: 1, borderColor: '#ccc', borderRadius: 6, paddingHorizontal: 10, height: 40 },
+  addButton: { color: '#007aff', paddingHorizontal: 8, paddingVertical: 8 },
+  feedRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10 },
+  feedTitle: { fontSize: 16, fontWeight: '600' },
+  feedDesc: { color: '#666' },
+  separator: { height: 1, backgroundColor: '#eee' },
+  empty: { textAlign: 'center', color: '#888', marginTop: 40 },
+  link: { color: '#ff3b30', paddingHorizontal: 8, paddingVertical: 8 },
 });
