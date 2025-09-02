@@ -34,6 +34,20 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="all"
+        options={{
+          title: 'All',
+          tabBarIcon: ({ color }) => <TabBarIcon name="globe" color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="collections"
+        options={{
+          title: 'Collections',
+          tabBarIcon: ({ color }) => <TabBarIcon name="folder" color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="two"
         options={{
           title: 'Bookmarks',

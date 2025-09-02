@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Article, Bookmark, FeedInfo, ReadMark, StoredState } from './types';
+import { Article, Bookmark, Collection, FeedInfo, ReadMark, StoredState } from './types';
 
 const STORAGE_KEYS = {
   state: 'rss_reader_state_v1',
@@ -21,7 +21,7 @@ async function writeJson<T>(key: string, value: T): Promise<void> {
 }
 
 export async function loadState(): Promise<StoredState> {
-  return readJson<StoredState>(STORAGE_KEYS.state, { feeds: [], bookmarks: {}, reads: {} });
+  return readJson<StoredState>(STORAGE_KEYS.state, { feeds: [], bookmarks: {}, reads: {}, collections: [] });
 }
 
 export async function saveState(state: StoredState): Promise<void> {
@@ -106,6 +106,39 @@ export async function markAllInFeed(feedId: string, read: boolean, articles?: Ar
   } else {
     for (const [id, mark] of Object.entries(state.reads)) if (mark.feedId === feedId) delete state.reads[id];
   }
+  await saveState(state);
+}
+
+export async function loadAllArticles(feeds: FeedInfo[]): Promise<Article[]> {
+  const all: Article[] = [];
+  for (const f of feeds) {
+    const items = await loadArticles(f.id);
+    all.push(...items);
+  }
+  return all.sort((a, b) => (b.pubDate || '').localeCompare(a.pubDate || ''));
+}
+
+export async function getCollections(): Promise<Collection[]> {
+  const state = await loadState();
+  return state.collections;
+}
+
+export async function saveCollections(collections: Collection[]): Promise<void> {
+  const state = await loadState();
+  state.collections = collections;
+  await saveState(state);
+}
+
+export async function addOrUpdateCollection(collection: Collection): Promise<void> {
+  const state = await loadState();
+  const idx = state.collections.findIndex((c) => c.id === collection.id);
+  if (idx >= 0) state.collections[idx] = collection; else state.collections.push(collection);
+  await saveState(state);
+}
+
+export async function removeCollection(collectionId: string): Promise<void> {
+  const state = await loadState();
+  state.collections = state.collections.filter((c) => c.id !== collectionId);
   await saveState(state);
 }
 
