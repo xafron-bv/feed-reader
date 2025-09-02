@@ -1,3 +1,4 @@
+import { describe, it, expect } from '@jest/globals';
 import { parseFeedText, rssToArticles } from '@/lib/parser';
 
 const sampleFeed = `<?xml version="1.0" encoding="UTF-8"?>

@@ -2,6 +2,13 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
+    "baseUrl": ".",
+    "moduleResolution": "bundler",
+    "customConditions": ["react-native"],
+    "allowJs": false,
+    "types": [
+      "jest"
+    ],
     "paths": {
       "@/*": [
         "./*"
@@ -13,5 +20,8 @@
     "**/*.tsx",
     ".expo/types/**/*.ts",
     "expo-env.d.ts"
+  ],
+  "exclude": [
+    "cypress/**"
   ]
 }
