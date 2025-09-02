@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit & Integration tests
+        run: npm run test:unit -- --runInBand
+
+      - name: Build web
+        run: npm run build:web
+
+      - name: Start preview server
+        run: npm run preview:web &
+
+      - name: Wait for web to be ready
+        run: |
+          for i in {1..60}; do
+            if curl -sSf http://localhost:3000 > /dev/null; then
+              echo "Web is up"; exit 0; fi; sleep 1; done
+          echo "Web failed to start"; exit 1
+
+      - name: Cypress e2e
+        uses: cypress-io/github-action@v6
+        with:
+          install: false
+          start: npm run preview:web
+          wait-on: 'http://localhost:3000'
+          browser: chrome
+
