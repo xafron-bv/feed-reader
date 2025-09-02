@@ -85,6 +85,7 @@ export default function CollectionArticlesScreen() {
         renderItem={renderItem}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        testID="collection-articles-list"
       />
     </View>
   );

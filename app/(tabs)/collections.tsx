@@ -50,7 +50,7 @@ export default function CollectionsScreen() {
   };
 
   const renderItem = ({ item }: { item: Collection }) => (
-    <View style={styles.row}>
+    <View style={styles.row} testID="collection-row">
       <Link href={{ pathname: '/collection/[id]', params: { id: item.id } }} asChild>
         <View style={{ flex: 1 }}>
           <Text style={styles.title}>{item.name}</Text>
@@ -63,26 +63,26 @@ export default function CollectionsScreen() {
 
   return (
     <View style={styles.container}>
-      <Pressable onPress={openCreate}><Text style={styles.add}>+ New Collection</Text></Pressable>
+      <Pressable onPress={openCreate} testID="new-collection-button"><Text style={styles.add}>+ New Collection</Text></Pressable>
       <FlatList data={local} keyExtractor={(c) => c.id} renderItem={renderItem} ItemSeparatorComponent={() => <View style={styles.separator} />} />
 
       <Modal visible={modalVisible} animationType="slide" onRequestClose={() => setModalVisible(false)}>
         <View style={styles.modal}>
           <Text style={styles.modalTitle}>New Collection</Text>
-          <TextInput placeholder="Name" value={name} onChangeText={setName} style={styles.input} />
+          <TextInput placeholder="Name" value={name} onChangeText={setName} style={styles.input} testID="collection-name-input" />
           <Text style={styles.modalSubtitle}>Select feeds</Text>
           <FlatList
             data={feeds as FeedInfo[]}
             keyExtractor={(f) => f.id}
             renderItem={({ item }) => (
-              <Pressable onPress={() => toggleFeed(item.id)} style={styles.feedRow}>
+              <Pressable onPress={() => toggleFeed(item.id)} style={styles.feedRow} testID="collection-feed-option">
                 <Text style={[styles.feedName, selectedFeedIds.includes(item.id) ? styles.selected : null]}>{item.title ?? item.url}</Text>
               </Pressable>
             )}
           />
           <View style={styles.modalActions}>
             <Pressable onPress={() => setModalVisible(false)}><Text style={styles.link}>Cancel</Text></Pressable>
-            <Pressable onPress={save}><Text style={styles.link}>Save</Text></Pressable>
+            <Pressable onPress={save} testID="collection-save-button"><Text style={styles.link}>Save</Text></Pressable>
           </View>
         </View>
       </Modal>

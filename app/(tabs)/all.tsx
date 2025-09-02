@@ -90,6 +90,7 @@ export default function AllArticlesScreen() {
         renderItem={renderItem}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        testID="all-articles-list"
       />
     </View>
   );
