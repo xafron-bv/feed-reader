@@ -41,7 +41,7 @@ export default function FeedArticlesScreen() {
 
   const renderItem = ({ item }: { item: Article }) => (
     <Link href={{ pathname: '/article', params: { id: item.id, feedId: item.feedId } }} asChild>
-      <View style={styles.row}>
+      <View style={styles.row} testID="article-row">
         <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
         <Text style={styles.meta}>{formatRelativeFromNow(item.pubDate)}</Text>
       </View>
