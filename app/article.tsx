@@ -9,7 +9,7 @@ import { formatRelativeFromNow } from '@/lib/date';
 
 export default function ArticleScreen() {
   const params = useLocalSearchParams<Partial<{ id: string; feedId: string }>>();
-  const { getArticles, toggleBookmark } = useAppContext();
+  const { getArticles, toggleBookmark, setArticleRead } = useAppContext();
   const [article, setArticle] = useState<Article | undefined>(undefined);
   const { width } = useWindowDimensions();
 
@@ -17,7 +17,9 @@ export default function ArticleScreen() {
     (async () => {
       if (!params.feedId || !params.id) return;
       const list = await getArticles(String(params.feedId));
-      setArticle(list.find((a) => a.id === params.id));
+      const found = list.find((a) => a.id === params.id);
+      setArticle(found);
+      if (found) await setArticleRead(found, true);
     })();
   }, [params.feedId, params.id]);
 

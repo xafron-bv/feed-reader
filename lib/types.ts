@@ -25,6 +25,7 @@ export type Bookmark = {
 export type StoredState = {
   feeds: FeedInfo[];
   bookmarks: Record<string, Bookmark>; // id -> bookmark
+  reads: Record<string, ReadMark>; // id -> read mark
 };
 
 export type ParsedArticle = {
@@ -33,5 +34,11 @@ export type ParsedArticle = {
   link: string;
   pubDate?: Date;
   image?: string;
+};
+
+export type ReadMark = {
+  id: string; // article id
+  feedId: string;
+  readAt: string; // ISO string
 };
 

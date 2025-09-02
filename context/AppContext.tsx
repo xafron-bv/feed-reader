@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useEffect, useMemo, useState } from 'react';
-import { Article, FeedInfo, ParsedArticle } from '@/lib/types';
-import { addFeed as storageAddFeed, getBookmarks, loadArticles as storageLoadArticles, loadState, removeFeed as storageRemoveFeed, saveArticles as storageSaveArticles, saveState, toggleBookmark as storageToggleBookmark } from '@/lib/storage';
+import { Article, FeedInfo, ParsedArticle, ReadMark } from '@/lib/types';
+import { addFeed as storageAddFeed, getBookmarks, getReadMarks as storageGetReadMarks, loadArticles as storageLoadArticles, loadState, markAllInFeed, markArticleRead, markArticleUnread, removeFeed as storageRemoveFeed, saveArticles as storageSaveArticles, saveState, toggleBookmark as storageToggleBookmark } from '@/lib/storage';
 import { feedIdFromUrl, articleIdFromLink } from '@/lib/hash';
 import { getFeedInfo, parseFeedText } from '@/lib/parser';
 
@@ -12,6 +12,10 @@ type AppContextValue = {
   refreshFeed: (feedId: string) => Promise<Article[]>;
   toggleBookmark: (article: Article) => Promise<boolean>;
   getBookmarkedArticles: () => Promise<Article[]>;
+  isArticleRead: (articleId: string) => Promise<boolean>;
+  setArticleRead: (article: Article, read: boolean) => Promise<void>;
+  markAllInFeed: (feedId: string, read: boolean) => Promise<void>;
+  getReadMarks: () => Promise<Record<string, ReadMark>>;
 };
 
 export const AppContext = createContext<AppContextValue | undefined>(undefined);
@@ -96,6 +100,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return result.bookmarked;
   }, []);
 
+  const isArticleRead = useCallback(async (articleId: string) => {
+    const reads = await storageGetReadMarks();
+    return !!reads[articleId];
+  }, []);
+
+  const setArticleReadCb = useCallback(async (article: Article, read: boolean) => {
+    if (read) await markArticleRead(article);
+    else await markArticleUnread(article.id);
+  }, []);
+
+  const markAllInFeedCb = useCallback(async (feedId: string, read: boolean) => {
+    await markAllInFeed(feedId, read);
+  }, []);
+
+  const getReadMarksCb = useCallback(async () => {
+    return await storageGetReadMarks();
+  }, []);
+
   const getBookmarkedArticles = useCallback(async () => {
     const bookmarks = await getBookmarks();
     const bookmarkIds = new Set(Object.keys(bookmarks));
@@ -116,8 +138,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       refreshFeed,
       toggleBookmark,
       getBookmarkedArticles,
+      isArticleRead,
+      setArticleRead: setArticleReadCb,
+      markAllInFeed: markAllInFeedCb,
+      getReadMarks: getReadMarksCb,
     }),
-    [feeds, addFeedByUrl, removeFeed, getArticles, refreshFeed, toggleBookmark, getBookmarkedArticles]
+    [feeds, addFeedByUrl, removeFeed, getArticles, refreshFeed, toggleBookmark, getBookmarkedArticles, isArticleRead, setArticleReadCb, markAllInFeedCb, getReadMarksCb]
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
