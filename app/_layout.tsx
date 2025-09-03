@@ -50,11 +50,11 @@ export default function RootLayout() {
 
 function RootLayoutNav() {
   const colorScheme = useColorScheme();
-  useRegisterServiceWorkerRefresh();
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <AppProvider>
+        <BackgroundSyncRegistrar />
         <Stack>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
@@ -87,4 +87,9 @@ function useRegisterServiceWorkerRefresh() {
       });
     }
   }, [feeds, refreshFeed, settings?.backgroundSyncEnabled]);
+}
+
+function BackgroundSyncRegistrar() {
+  useRegisterServiceWorkerRefresh();
+  return null;
 }
