@@ -3,7 +3,7 @@ import { Alert, FlatList, Pressable, StyleSheet, TextInput } from 'react-native'
 import { Text, View } from '@/components/Themed';
 import { useAppContext } from '@/context/AppContext';
 import { FeedInfo } from '@/lib/types';
-import { Link } from 'expo-router';
+import { Link, router } from 'expo-router';
 
 export default function FeedsScreen() {
   const { feeds, addFeedByUrl, removeFeed, refreshFeed } = useAppContext();
@@ -27,14 +27,14 @@ export default function FeedsScreen() {
 
   const renderItem = ({ item }: { item: FeedInfo }) => (
     <View style={styles.feedRow} testID="feed-row">
-      <Link href={{ pathname: '/feed/[id]', params: { id: item.id } }} asChild>
+      <Pressable accessibilityRole="button" testID="feed-open" onPress={() => router.push({ pathname: '/feed/[id]', params: { id: item.id } })} style={{ flex: 1 }}>
         <View style={{ flex: 1 }}>
           <Text style={styles.feedTitle}>{item.title ?? item.url}</Text>
           {item.description ? (
             <Text style={styles.feedDesc} numberOfLines={1}>{item.description}</Text>
           ) : null}
         </View>
-      </Link>
+      </Pressable>
       <Text style={styles.link} onPress={() => onDelete(item.id)}>Delete</Text>
     </View>
   );

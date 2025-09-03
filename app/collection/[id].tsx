@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { useLocalSearchParams, Link } from 'expo-router';
+import { useLocalSearchParams, router } from 'expo-router';
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, TextInput, Pressable } from 'react-native';
 import { Text, View } from '@/components/Themed';
 import { useAppContext } from '@/context/AppContext';
@@ -50,12 +50,12 @@ export default function CollectionArticlesScreen() {
   });
 
   const renderItem = ({ item }: { item: Article }) => (
-    <Link href={{ pathname: '/article', params: { id: item.id, feedId: item.feedId } }} asChild>
+    <Pressable onPress={() => router.push({ pathname: '/article', params: { id: item.id, feedId: item.feedId } })}>
       <View style={[styles.row, readMap[item.id] ? styles.rowRead : null]}>
         <Text style={[styles.title, readMap[item.id] ? styles.titleRead : null]} numberOfLines={2}>{item.title}</Text>
         <Text style={[styles.meta, readMap[item.id] ? styles.metaRead : null]}>{formatRelativeFromNow(item.pubDate)}</Text>
       </View>
-    </Link>
+    </Pressable>
   );
 
   if (loading) {
