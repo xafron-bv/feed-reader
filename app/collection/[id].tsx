@@ -5,10 +5,10 @@ import { Text, View } from '@/components/Themed';
 import { useAppContext } from '@/context/AppContext';
 import { Article } from '@/lib/types';
 import { formatRelativeFromNow } from '@/lib/date';
-import { useClientOnlyValue } from '@/components/useClientOnlyValue';
 
 export default function CollectionArticlesScreen() {
-  const isClient = useClientOnlyValue(false, true) as boolean;
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => { setHydrated(true); }, []);
   const params = useLocalSearchParams<{ id: string }>();
   const collectionId = params.id;
   const { getCollectionArticles, getReadMarks } = useAppContext() as any;
@@ -60,7 +60,7 @@ export default function CollectionArticlesScreen() {
     </Pressable>
   );
 
-  if (!isClient || loading) {
+  if (!hydrated || loading) {
     return (
       <View style={styles.center}> 
         <ActivityIndicator />

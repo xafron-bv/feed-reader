@@ -3,15 +3,15 @@ import { Alert, FlatList, Modal, Pressable, StyleSheet, TextInput } from 'react-
 import { Text, View } from '@/components/Themed';
 import { useAppContext } from '@/context/AppContext';
 import { Collection, FeedInfo } from '@/lib/types';
-import { Link } from 'expo-router';
-import { useClientOnlyValue } from '@/components/useClientOnlyValue';
+import { router } from 'expo-router';
 
 function generateId(name: string) {
   return Math.random().toString(36).slice(2) + '-' + Date.now().toString(36);
 }
 
 export default function CollectionsScreen() {
-  const isClient = useClientOnlyValue(false, true) as boolean;
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => { setHydrated(true); }, []);
   const { collections, feeds, addOrUpdateCollection, removeCollection } = useAppContext() as any;
   const [local, setLocal] = useState<Collection[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
@@ -53,17 +53,17 @@ export default function CollectionsScreen() {
 
   const renderItem = ({ item }: { item: Collection }) => (
     <View style={styles.row} testID="collection-row">
-      <Link href={{ pathname: '/collection/[id]', params: { id: item.id } }} asChild>
+      <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/collection/[id]', params: { id: item.id } })} style={{ flex: 1 }}>
         <View style={{ flex: 1 }}>
           <Text style={styles.title}>{item.name}</Text>
           <Text style={styles.desc} numberOfLines={1}>{item.feedIds.length} feeds</Text>
         </View>
-      </Link>
+      </Pressable>
       <Pressable onPress={() => remove(item.id)}><Text style={styles.delete}>Delete</Text></Pressable>
     </View>
   );
 
-  if (!isClient) {
+  if (!hydrated) {
     return <View style={styles.container} />;
   }
 

@@ -5,10 +5,10 @@ import { useAppContext } from '@/context/AppContext';
 import { Article } from '@/lib/types';
 import { formatRelativeFromNow } from '@/lib/date';
 import { router } from 'expo-router';
-import { useClientOnlyValue } from '@/components/useClientOnlyValue';
 
 export default function AllArticlesScreen() {
-  const isClient = useClientOnlyValue(false, true) as boolean;
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => { setHydrated(true); }, []);
   const { getAllArticles, refreshFeed, feeds, getReadMarks, markAllInFeed } = useAppContext() as any;
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,7 +58,7 @@ export default function AllArticlesScreen() {
     </Pressable>
   );
 
-  if (!isClient || loading) {
+  if (!hydrated || loading) {
     return (
       <View style={styles.center}> 
         <ActivityIndicator />

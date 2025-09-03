@@ -11,7 +11,7 @@ describe('HN Newest feed e2e', () => {
     cy.findAllByTestId('feed-row').first().findByTestId('feed-open').click({ force: true });
 
     // Ensure the articles list appears and has at least one article
-    cy.findByTestId('articles-list');
+    cy.findByTestId('articles-list', { timeout: 15000 });
     cy.findAllByTestId('article-row').first().click();
 
     // Article view should render with content

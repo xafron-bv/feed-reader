@@ -31,13 +31,8 @@ describe('All and Collections flows', () => {
     cy.findAllByTestId('collection-feed-option').first().click({ force: true });
     cy.findByTestId('collection-save-button').click();
 
-    // Open first collection row via its link href
-    cy.findAllByTestId('collection-row').first().within(() => {
-      cy.get('a, [role="link"]').first().then(($a) => {
-        const href = $a.attr('href') as string;
-        cy.visit(href);
-      });
-    });
+    // Open first collection row via Pressable
+    cy.findAllByTestId('collection-row').first().click();
 
     // Should see aggregated list (at least not crash)
     cy.findByTestId('collection-articles-list');
