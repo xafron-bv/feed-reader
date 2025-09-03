@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useEffect, useMemo, useState } from 'react';
 import { Article, Collection, FeedInfo, ParsedArticle, ReadMark, Settings } from '@/lib/types';
-import { addFeed as storageAddFeed, addOrUpdateCollection, getBookmarks, getCollections, getReadMarks as storageGetReadMarks, loadAllArticles, loadArticles as storageLoadArticles, loadSettings, loadState, markAllInFeed, markArticleRead, markArticleUnread, removeCollection, removeFeed as storageRemoveFeed, saveArticles as storageSaveArticles, saveCollections, saveSettings, saveState, toggleBookmark as storageToggleBookmark, updateLastSync } from '@/lib/storage';
+import { addFeed as storageAddFeed, addOrUpdateCollection, aggregateCollectionArticles, getBookmarks, getCollections, getReadMarks as storageGetReadMarks, loadAllArticles, loadArticles as storageLoadArticles, loadCollectionArticles, loadSettings, loadState, markAllInFeed, markArticleRead, markArticleUnread, mergeAndSaveArticles, removeCollection, removeFeed as storageRemoveFeed, saveArticles as storageSaveArticles, saveCollections, saveSettings, saveState, toggleBookmark as storageToggleBookmark, updateLastSync } from '@/lib/storage';
 import { refreshAllFeeds } from '@/lib/refresh';
 import { feedIdFromUrl, articleIdFromLink } from '@/lib/hash';
 import { getFeedInfo, parseFeedText } from '@/lib/parser';
@@ -89,8 +89,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const text = await fetchText(feed.url);
     const parsed = await parseFeedText(text);
     const newArticles = transformParsedArticlesToArticles(feedId, parsed);
-    await storageSaveArticles(feedId, newArticles);
-    return newArticles;
+    const merged = await mergeAndSaveArticles(feedId, newArticles);
+    return merged;
   }, [feeds]);
 
   const syncAll = useCallback(async () => {
@@ -164,12 +164,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const allCollections = await getCollections();
     const col = allCollections.find((c) => c.id === collectionId);
     if (!col) return [];
-    const articles: Article[] = [];
-    for (const feedId of col.feedIds) {
-      const list = await storageLoadArticles(feedId);
-      articles.push(...list);
-    }
-    return articles.sort((a, b) => (b.pubDate || '').localeCompare(a.pubDate || ''));
+    // Use cached aggregated if available; else compute and persist
+    const cached = await loadCollectionArticles(col.id);
+    if (cached.length > 0) return cached;
+    return await aggregateCollectionArticles(col);
   }, []);
 
   const value = useMemo<AppContextValue>(

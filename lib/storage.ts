@@ -4,6 +4,7 @@ import { Article, Bookmark, Collection, FeedInfo, ReadMark, Settings, StoredStat
 const STORAGE_KEYS = {
   state: 'rss_reader_state_v1',
   articlesPrefix: 'rss_reader_articles_v1:', // + feedId
+  collectionArticlesPrefix: 'rss_reader_collection_articles_v1:', // + collectionId
 };
 
 async function readJson<T>(key: string, fallback: T): Promise<T> {
@@ -41,6 +42,16 @@ export async function loadArticles(feedId: string): Promise<Article[]> {
 
 export async function saveArticles(feedId: string, articles: Article[]): Promise<void> {
   await writeJson(STORAGE_KEYS.articlesPrefix + feedId, articles);
+}
+
+export async function mergeAndSaveArticles(feedId: string, incoming: Article[]): Promise<Article[]> {
+  const existing = await loadArticles(feedId);
+  const mergedById = new Map<string, Article>();
+  for (const a of existing) mergedById.set(a.id, a);
+  for (const b of incoming) mergedById.set(b.id, b);
+  const merged = Array.from(mergedById.values()).sort((a, b) => (b.pubDate || '').localeCompare(a.pubDate || ''));
+  await saveArticles(feedId, merged);
+  return merged;
 }
 
 export async function addFeed(feed: FeedInfo): Promise<void> {
@@ -164,5 +175,24 @@ export async function updateLastSync(timestampIso: string): Promise<void> {
   const state = await loadState();
   state.settings = { ...(state.settings ?? { backgroundSyncEnabled: true }), lastSyncAt: timestampIso };
   await saveState(state);
+}
+
+export async function saveCollectionArticles(collectionId: string, articles: Article[]): Promise<void> {
+  await writeJson(STORAGE_KEYS.collectionArticlesPrefix + collectionId, articles);
+}
+
+export async function loadCollectionArticles(collectionId: string): Promise<Article[]> {
+  return readJson<Article[]>(STORAGE_KEYS.collectionArticlesPrefix + collectionId, []);
+}
+
+export async function aggregateCollectionArticles(collection: Collection): Promise<Article[]> {
+  const byLink = new Map<string, Article>();
+  for (const feedId of collection.feedIds) {
+    const items = await loadArticles(feedId);
+    for (const a of items) if (!byLink.has(a.link)) byLink.set(a.link, a);
+  }
+  const deduped = Array.from(byLink.values()).sort((a, b) => (b.pubDate || '').localeCompare(a.pubDate || ''));
+  await saveCollectionArticles(collection.id, deduped);
+  return deduped;
 }
 
