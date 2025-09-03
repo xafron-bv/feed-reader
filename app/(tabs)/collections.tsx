@@ -4,12 +4,14 @@ import { Text, View } from '@/components/Themed';
 import { useAppContext } from '@/context/AppContext';
 import { Collection, FeedInfo } from '@/lib/types';
 import { Link } from 'expo-router';
+import { useClientOnlyValue } from '@/components/useClientOnlyValue';
 
 function generateId(name: string) {
   return Math.random().toString(36).slice(2) + '-' + Date.now().toString(36);
 }
 
 export default function CollectionsScreen() {
+  const isClient = useClientOnlyValue(false, true) as boolean;
   const { collections, feeds, addOrUpdateCollection, removeCollection } = useAppContext() as any;
   const [local, setLocal] = useState<Collection[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
@@ -60,6 +62,10 @@ export default function CollectionsScreen() {
       <Pressable onPress={() => remove(item.id)}><Text style={styles.delete}>Delete</Text></Pressable>
     </View>
   );
+
+  if (!isClient) {
+    return <View style={styles.container} />;
+  }
 
   return (
     <View style={styles.container}>
