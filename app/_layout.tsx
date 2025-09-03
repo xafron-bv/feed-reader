@@ -74,9 +74,10 @@ function useRegisterServiceWorkerRefresh() {
     if (!('serviceWorker' in navigator)) {
       if (settings?.backgroundSyncEnabled !== false) registerBackgroundFetchAsync().catch(() => {});
     }
-    if ('serviceWorker' in navigator) {
+    if (process.env.NODE_ENV === 'production' && 'serviceWorker' in navigator) {
       // Register SW
-      navigator.serviceWorker.register('/worker.js', { scope: '/' }).catch(() => {});
+      const swPath = '/worker.js';
+      navigator.serviceWorker.register(swPath).catch(() => {});
       // Listen for background tick
       navigator.serviceWorker.addEventListener('message', async (event) => {
         if (event.data?.type === 'FEEDS_REFRESH_TICK' && (settings?.backgroundSyncEnabled !== false)) {
