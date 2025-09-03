@@ -15,12 +15,12 @@ TaskManager.defineTask(BACKGROUND_FETCH_TASK, async () => {
   }
 });
 
-export async function registerBackgroundFetchAsync() {
+export async function registerBackgroundFetchAsync(minutes?: number) {
   const isRegistered = await TaskManager.isTaskRegisteredAsync(BACKGROUND_FETCH_TASK);
   if (!isRegistered) {
     try {
       await BackgroundFetch.registerTaskAsync(BACKGROUND_FETCH_TASK, {
-        minimumInterval: 15 * 60,
+        minimumInterval: Math.max(15, Math.floor(minutes ?? 15)) * 60,
         stopOnTerminate: false,
         startOnBoot: true,
       });

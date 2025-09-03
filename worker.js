@@ -1,5 +1,5 @@
 /* global self */
-const FEED_REFRESH_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
+let FEED_REFRESH_INTERVAL_MS = 15 * 60 * 1000; // default 15 minutes
 let timer = null;
 
 self.addEventListener('install', () => {
@@ -9,6 +9,17 @@ self.addEventListener('install', () => {
 self.addEventListener('activate', () => {
   self.clients.claim();
   schedule();
+});
+
+self.addEventListener('message', (event) => {
+  const data = event.data || {};
+  if (data.type === 'SET_SYNC_INTERVAL') {
+    const minutes = Number(data.minutes);
+    if (!Number.isNaN(minutes) && minutes > 0) {
+      FEED_REFRESH_INTERVAL_MS = minutes * 60 * 1000;
+      schedule();
+    }
+  }
 });
 
 function schedule() {

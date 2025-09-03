@@ -22,13 +22,14 @@ async function writeJson<T>(key: string, value: T): Promise<void> {
 }
 
 export async function loadState(): Promise<StoredState> {
-  const state = await readJson<StoredState>(STORAGE_KEYS.state, { feeds: [], bookmarks: {}, reads: {}, collections: [], settings: { backgroundSyncEnabled: true } });
+  const state = await readJson<StoredState>(STORAGE_KEYS.state, { feeds: [], bookmarks: {}, reads: {}, collections: [], settings: { backgroundSyncEnabled: true, syncIntervalMinutes: 15 } });
   // Harden against legacy states missing fields
   (state as any).feeds = state.feeds ?? [];
   (state as any).bookmarks = state.bookmarks ?? {};
   (state as any).reads = state.reads ?? {};
   (state as any).collections = state.collections ?? [];
-  (state as any).settings = state.settings ?? { backgroundSyncEnabled: true };
+  const defaults: Settings = { backgroundSyncEnabled: true, syncIntervalMinutes: 15 } as Settings;
+  (state as any).settings = { ...defaults, ...(state.settings ?? {}) } as Settings;
   return state;
 }
 
@@ -162,7 +163,7 @@ export async function removeCollection(collectionId: string): Promise<void> {
 
 export async function loadSettings(): Promise<Settings> {
   const state = await loadState();
-  return state.settings ?? { backgroundSyncEnabled: true };
+  return state.settings ?? { backgroundSyncEnabled: true, syncIntervalMinutes: 15 };
 }
 
 export async function saveSettings(settings: Settings): Promise<void> {
@@ -173,7 +174,7 @@ export async function saveSettings(settings: Settings): Promise<void> {
 
 export async function updateLastSync(timestampIso: string): Promise<void> {
   const state = await loadState();
-  state.settings = { ...(state.settings ?? { backgroundSyncEnabled: true }), lastSyncAt: timestampIso };
+  state.settings = { ...(state.settings ?? { backgroundSyncEnabled: true, syncIntervalMinutes: 15 }), lastSyncAt: timestampIso };
   await saveState(state);
 }
 

@@ -71,11 +71,12 @@ function usePeriodicRefresh() {
   const { feeds, refreshFeed } = useAppContext();
   const { settings } = useAppContext() as any;
   useEffect(() => {
+    const minutes = Math.max(1, Math.floor(settings?.syncIntervalMinutes ?? 15));
     const id = setInterval(() => {
       if (settings?.backgroundSyncEnabled !== false) feeds.forEach((f) => refreshFeed(f.id).catch(() => {}));
-    }, 15 * 60 * 1000);
+    }, minutes * 60 * 1000);
     return () => clearInterval(id);
-  }, [feeds, refreshFeed, settings?.backgroundSyncEnabled]);
+  }, [feeds, refreshFeed, settings?.backgroundSyncEnabled, settings?.syncIntervalMinutes]);
 }
 
 const styles = StyleSheet.create({
