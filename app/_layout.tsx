@@ -6,6 +6,7 @@ import { AppProvider } from '@/context/AppContext';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { useAppContext } from '@/context/AppContext';
+import { registerBackgroundFetchAsync } from './background';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/components/useColorScheme';
@@ -67,6 +68,11 @@ function useRegisterServiceWorkerRefresh() {
   const { feeds, refreshFeed } = useAppContext();
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    // Register native background fetch when running on native
+    // On web, window.navigator exists; on native, serviceWorker won't.
+    if (!('serviceWorker' in navigator)) {
+      registerBackgroundFetchAsync().catch(() => {});
+    }
     if ('serviceWorker' in navigator) {
       // Register SW
       navigator.serviceWorker.register('/worker.js', { scope: '/' }).catch(() => {});

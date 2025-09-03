@@ -23,6 +23,23 @@
       },
       "edgeToEdgeEnabled": true
     },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-background-fetch",
+        {
+          "ios": {
+            "backgroundFetch": true
+          }
+        }
+      ]
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "UIBackgroundModes": ["fetch"]
+      }
+    },
     "web": {
       "bundler": "metro",
       "output": "static",
@@ -31,9 +48,6 @@
         "src": "./app/worker.js"
       }
     },
-    "plugins": [
-      "expo-router"
-    ],
     "experiments": {
       "typedRoutes": true
     }
