@@ -21,7 +21,14 @@ async function writeJson<T>(key: string, value: T): Promise<void> {
 }
 
 export async function loadState(): Promise<StoredState> {
-  return readJson<StoredState>(STORAGE_KEYS.state, { feeds: [], bookmarks: {}, reads: {}, collections: [], settings: { backgroundSyncEnabled: true } });
+  const state = await readJson<StoredState>(STORAGE_KEYS.state, { feeds: [], bookmarks: {}, reads: {}, collections: [], settings: { backgroundSyncEnabled: true } });
+  // Harden against legacy states missing fields
+  (state as any).feeds = state.feeds ?? [];
+  (state as any).bookmarks = state.bookmarks ?? {};
+  (state as any).reads = state.reads ?? {};
+  (state as any).collections = state.collections ?? [];
+  (state as any).settings = state.settings ?? { backgroundSyncEnabled: true };
+  return state;
 }
 
 export async function saveState(state: StoredState): Promise<void> {

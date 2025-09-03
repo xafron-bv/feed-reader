@@ -130,7 +130,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const getBookmarkedArticles = useCallback(async () => {
     const bookmarks = await getBookmarks();
-    const bookmarkIds = new Set(Object.keys(bookmarks));
+    const bookmarkIds = new Set(Object.keys(bookmarks ?? {}));
     const all: Article[] = [];
     for (const feed of feeds) {
       const articles = await storageLoadArticles(feed.id);

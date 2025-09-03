@@ -32,7 +32,7 @@ export default function FeedArticlesScreen() {
     (async () => {
       const marks = await getReadMarks();
       const map: Record<string, boolean> = {};
-      for (const id of Object.keys(marks)) map[id] = true;
+      if (marks) for (const id of Object.keys(marks ?? {})) map[id] = true;
       setReadMap(map);
     })();
   }, [articles]);
@@ -48,7 +48,7 @@ export default function FeedArticlesScreen() {
   const filtered = articles.filter((a) => {
     if (showOnlyUnread && readMap[a.id]) return false;
     const q = search.toLowerCase();
-    return a.title.toLowerCase().includes(q) || a.content.toLowerCase().includes(q);
+    return a.title.toLowerCase().includes(q) || (a.content || '').toLowerCase().includes(q);
   });
 
   const renderItem = ({ item }: { item: Article }) => (

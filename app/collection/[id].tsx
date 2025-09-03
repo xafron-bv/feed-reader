@@ -32,7 +32,7 @@ export default function CollectionArticlesScreen() {
     (async () => {
       const marks = await getReadMarks();
       const map: Record<string, boolean> = {};
-      for (const id of Object.keys(marks)) map[id] = true;
+      if (marks) for (const id of Object.keys(marks ?? {})) map[id] = true;
       setReadMap(map);
     })();
   }, [articles]);
