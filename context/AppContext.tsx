@@ -3,6 +3,7 @@ import { Article, Collection, FeedInfo, ParsedArticle, ReadMark } from '@/lib/ty
 import { addFeed as storageAddFeed, addOrUpdateCollection, getBookmarks, getCollections, getReadMarks as storageGetReadMarks, loadAllArticles, loadArticles as storageLoadArticles, loadState, markAllInFeed, markArticleRead, markArticleUnread, removeCollection, removeFeed as storageRemoveFeed, saveArticles as storageSaveArticles, saveCollections, saveState, toggleBookmark as storageToggleBookmark } from '@/lib/storage';
 import { feedIdFromUrl, articleIdFromLink } from '@/lib/hash';
 import { getFeedInfo, parseFeedText } from '@/lib/parser';
+import { fetchTextWithCorsFallback } from '@/lib/net';
 
 type AppContextValue = {
   feeds: FeedInfo[];
@@ -25,19 +26,7 @@ type AppContextValue = {
 
 export const AppContext = createContext<AppContextValue | undefined>(undefined);
 
-async function fetchText(url: string): Promise<string> {
-  try {
-    const res = await fetch(url);
-    if (res.ok) return await res.text();
-    throw new Error(`HTTP ${res.status}`);
-  } catch (_err) {
-    // Fallback for web CORS: use AllOrigins proxy
-    const proxied = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-    const resp = await fetch(proxied);
-    if (!resp.ok) throw new Error('Failed to fetch feed');
-    return await resp.text();
-  }
-}
+async function fetchText(url: string): Promise<string> { return fetchTextWithCorsFallback(url); }
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [feeds, setFeeds] = useState<FeedInfo[]>([]);

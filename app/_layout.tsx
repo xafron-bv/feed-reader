@@ -5,6 +5,7 @@ import { Stack } from 'expo-router';
 import { AppProvider } from '@/context/AppContext';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
+import { useAppContext } from '@/context/AppContext';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/components/useColorScheme';
@@ -48,6 +49,7 @@ export default function RootLayout() {
 
 function RootLayoutNav() {
   const colorScheme = useColorScheme();
+  useRegisterServiceWorkerRefresh();
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
@@ -59,4 +61,23 @@ function RootLayoutNav() {
       </AppProvider>
     </ThemeProvider>
   );
+}
+
+function useRegisterServiceWorkerRefresh() {
+  const { feeds, refreshFeed } = useAppContext();
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if ('serviceWorker' in navigator) {
+      // Register SW
+      navigator.serviceWorker.register('/worker.js', { scope: '/' }).catch(() => {});
+      // Listen for background tick
+      navigator.serviceWorker.addEventListener('message', async (event) => {
+        if (event.data?.type === 'FEEDS_REFRESH_TICK') {
+          for (const f of feeds) {
+            try { await refreshFeed(f.id); } catch {}
+          }
+        }
+      });
+    }
+  }, [feeds, refreshFeed]);
 }

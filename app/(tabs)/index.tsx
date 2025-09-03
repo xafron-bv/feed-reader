@@ -6,8 +6,9 @@ import { FeedInfo } from '@/lib/types';
 import { Link } from 'expo-router';
 
 export default function FeedsScreen() {
-  const { feeds, addFeedByUrl, removeFeed } = useAppContext();
+  const { feeds, addFeedByUrl, removeFeed, refreshFeed } = useAppContext();
   const [newFeedUrl, setNewFeedUrl] = useState('');
+  usePeriodicRefresh();
 
   const onAdd = async () => {
     if (!newFeedUrl.trim()) return;
@@ -63,6 +64,16 @@ export default function FeedsScreen() {
       />
     </View>
   );
+}
+
+function usePeriodicRefresh() {
+  const { feeds, refreshFeed } = useAppContext();
+  useEffect(() => {
+    const id = setInterval(() => {
+      feeds.forEach((f) => refreshFeed(f.id).catch(() => {}));
+    }, 15 * 60 * 1000);
+    return () => clearInterval(id);
+  }, [feeds, refreshFeed]);
 }
 
 const styles = StyleSheet.create({
