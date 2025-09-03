@@ -45,7 +45,7 @@
       "output": "static",
       "favicon": "./assets/images/favicon.png",
       "serviceWorker": {
-        "src": "./app/worker.js"
+        "src": "./worker.js"
       }
     },
     "experiments": {
