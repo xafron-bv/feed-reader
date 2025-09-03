@@ -55,5 +55,6 @@ export type Collection = {
 export type Settings = {
   backgroundSyncEnabled: boolean;
   lastSyncAt?: string; // ISO
+  syncIntervalMinutes?: number; // default 15
 };
 
