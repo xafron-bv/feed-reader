@@ -27,6 +27,7 @@ export type StoredState = {
   bookmarks: Record<string, Bookmark>; // id -> bookmark
   reads: Record<string, ReadMark>; // id -> read mark
   collections: Collection[];
+  settings?: Settings;
 };
 
 export type ParsedArticle = {
@@ -48,5 +49,10 @@ export type Collection = {
   name: string;
   feedIds: string[];
   createdAt: string; // ISO string
+};
+
+export type Settings = {
+  backgroundSyncEnabled: boolean;
+  lastSyncAt?: string; // ISO
 };
 

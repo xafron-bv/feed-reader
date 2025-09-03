@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Article, Bookmark, Collection, FeedInfo, ReadMark, StoredState } from './types';
+import { Article, Bookmark, Collection, FeedInfo, ReadMark, Settings, StoredState } from './types';
 
 const STORAGE_KEYS = {
   state: 'rss_reader_state_v1',
@@ -21,7 +21,7 @@ async function writeJson<T>(key: string, value: T): Promise<void> {
 }
 
 export async function loadState(): Promise<StoredState> {
-  return readJson<StoredState>(STORAGE_KEYS.state, { feeds: [], bookmarks: {}, reads: {}, collections: [] });
+  return readJson<StoredState>(STORAGE_KEYS.state, { feeds: [], bookmarks: {}, reads: {}, collections: [], settings: { backgroundSyncEnabled: true } });
 }
 
 export async function saveState(state: StoredState): Promise<void> {
@@ -139,6 +139,23 @@ export async function addOrUpdateCollection(collection: Collection): Promise<voi
 export async function removeCollection(collectionId: string): Promise<void> {
   const state = await loadState();
   state.collections = state.collections.filter((c) => c.id !== collectionId);
+  await saveState(state);
+}
+
+export async function loadSettings(): Promise<Settings> {
+  const state = await loadState();
+  return state.settings ?? { backgroundSyncEnabled: true };
+}
+
+export async function saveSettings(settings: Settings): Promise<void> {
+  const state = await loadState();
+  state.settings = settings;
+  await saveState(state);
+}
+
+export async function updateLastSync(timestampIso: string): Promise<void> {
+  const state = await loadState();
+  state.settings = { ...(state.settings ?? { backgroundSyncEnabled: true }), lastSyncAt: timestampIso };
   await saveState(state);
 }
 

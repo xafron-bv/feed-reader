@@ -7,6 +7,7 @@ import { Link } from 'expo-router';
 
 export default function FeedsScreen() {
   const { feeds, addFeedByUrl, removeFeed, refreshFeed } = useAppContext();
+  const { settings } = useAppContext() as any;
   const [newFeedUrl, setNewFeedUrl] = useState('');
   usePeriodicRefresh();
 
@@ -68,12 +69,13 @@ export default function FeedsScreen() {
 
 function usePeriodicRefresh() {
   const { feeds, refreshFeed } = useAppContext();
+  const { settings } = useAppContext() as any;
   useEffect(() => {
     const id = setInterval(() => {
-      feeds.forEach((f) => refreshFeed(f.id).catch(() => {}));
+      if (settings?.backgroundSyncEnabled !== false) feeds.forEach((f) => refreshFeed(f.id).catch(() => {}));
     }, 15 * 60 * 1000);
     return () => clearInterval(id);
-  }, [feeds, refreshFeed]);
+  }, [feeds, refreshFeed, settings?.backgroundSyncEnabled]);
 }
 
 const styles = StyleSheet.create({

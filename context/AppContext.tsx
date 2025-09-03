@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useEffect, useMemo, useState } from 'react';
-import { Article, Collection, FeedInfo, ParsedArticle, ReadMark } from '@/lib/types';
-import { addFeed as storageAddFeed, addOrUpdateCollection, getBookmarks, getCollections, getReadMarks as storageGetReadMarks, loadAllArticles, loadArticles as storageLoadArticles, loadState, markAllInFeed, markArticleRead, markArticleUnread, removeCollection, removeFeed as storageRemoveFeed, saveArticles as storageSaveArticles, saveCollections, saveState, toggleBookmark as storageToggleBookmark } from '@/lib/storage';
+import { Article, Collection, FeedInfo, ParsedArticle, ReadMark, Settings } from '@/lib/types';
+import { addFeed as storageAddFeed, addOrUpdateCollection, getBookmarks, getCollections, getReadMarks as storageGetReadMarks, loadAllArticles, loadArticles as storageLoadArticles, loadSettings, loadState, markAllInFeed, markArticleRead, markArticleUnread, removeCollection, removeFeed as storageRemoveFeed, saveArticles as storageSaveArticles, saveCollections, saveSettings, saveState, toggleBookmark as storageToggleBookmark, updateLastSync } from '@/lib/storage';
+import { refreshAllFeeds } from '@/lib/refresh';
 import { feedIdFromUrl, articleIdFromLink } from '@/lib/hash';
 import { getFeedInfo, parseFeedText } from '@/lib/parser';
 import { fetchTextWithCorsFallback } from '@/lib/net';
@@ -8,10 +9,13 @@ import { fetchTextWithCorsFallback } from '@/lib/net';
 type AppContextValue = {
   feeds: FeedInfo[];
   collections: Collection[];
+  settings: Settings;
+  setSettings: (s: Settings) => Promise<void>;
   addFeedByUrl: (url: string) => Promise<void>;
   removeFeed: (feedId: string) => Promise<void>;
   getArticles: (feedId: string) => Promise<Article[]>;
   refreshFeed: (feedId: string) => Promise<Article[]>;
+  syncAll: () => Promise<void>;
   toggleBookmark: (article: Article) => Promise<boolean>;
   getBookmarkedArticles: () => Promise<Article[]>;
   isArticleRead: (articleId: string) => Promise<boolean>;
@@ -31,12 +35,14 @@ async function fetchText(url: string): Promise<string> { return fetchTextWithCor
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [feeds, setFeeds] = useState<FeedInfo[]>([]);
   const [collectionsState, setCollectionsState] = useState<Collection[]>([]);
+  const [settings, setSettingsState] = useState<Settings>({ backgroundSyncEnabled: true });
 
   useEffect(() => {
     (async () => {
       const state = await loadState();
       setFeeds(state.feeds);
       setCollectionsState(state.collections ?? []);
+      setSettingsState(state.settings ?? { backgroundSyncEnabled: true });
     })();
   }, []);
 
@@ -87,6 +93,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return newArticles;
   }, [feeds]);
 
+  const syncAll = useCallback(async () => {
+    await refreshAllFeeds(feeds);
+    await updateLastSync(new Date().toISOString());
+    // refresh settings state
+    const s = await loadSettings();
+    setSettingsState(s);
+  }, [feeds]);
+
   const toggleBookmark = useCallback(async (article: Article) => {
     const result = await storageToggleBookmark(article);
     // Also update the cached articles for the feed
@@ -129,6 +143,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return await loadAllArticles(feeds);
   }, [feeds]);
 
+  const setSettingsCb = useCallback(async (s: Settings) => {
+    await saveSettings(s);
+    setSettingsState(s);
+  }, []);
+
   const addOrUpdateCollectionCb = useCallback(async (c: Collection) => {
     await addOrUpdateCollection(c);
     const list = await getCollections();
@@ -157,10 +176,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     () => ({
       feeds,
       collections: collectionsState,
+      settings,
+      setSettings: setSettingsCb,
       addFeedByUrl,
       removeFeed,
       getArticles,
       refreshFeed,
+      syncAll,
       toggleBookmark,
       getBookmarkedArticles,
       isArticleRead,
@@ -172,7 +194,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       removeCollection: removeCollectionCb,
       getCollectionArticles: getCollectionArticlesCb,
     }),
-    [feeds, collectionsState, addFeedByUrl, removeFeed, getArticles, refreshFeed, toggleBookmark, getBookmarkedArticles, isArticleRead, setArticleReadCb, markAllInFeedCb, getReadMarksCb, getAllArticlesCb, addOrUpdateCollectionCb, removeCollectionCb, getCollectionArticlesCb]
+    [feeds, collectionsState, settings, setSettingsCb, addFeedByUrl, removeFeed, getArticles, refreshFeed, syncAll, toggleBookmark, getBookmarkedArticles, isArticleRead, setArticleReadCb, markAllInFeedCb, getReadMarksCb, getAllArticlesCb, addOrUpdateCollectionCb, removeCollectionCb, getCollectionArticlesCb]
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

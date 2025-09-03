@@ -66,24 +66,25 @@ function RootLayoutNav() {
 
 function useRegisterServiceWorkerRefresh() {
   const { feeds, refreshFeed } = useAppContext();
+  const { settings } = useAppContext() as any;
   useEffect(() => {
     if (typeof window === 'undefined') return;
     // Register native background fetch when running on native
     // On web, window.navigator exists; on native, serviceWorker won't.
     if (!('serviceWorker' in navigator)) {
-      registerBackgroundFetchAsync().catch(() => {});
+      if (settings?.backgroundSyncEnabled !== false) registerBackgroundFetchAsync().catch(() => {});
     }
     if ('serviceWorker' in navigator) {
       // Register SW
       navigator.serviceWorker.register('/worker.js', { scope: '/' }).catch(() => {});
       // Listen for background tick
       navigator.serviceWorker.addEventListener('message', async (event) => {
-        if (event.data?.type === 'FEEDS_REFRESH_TICK') {
+        if (event.data?.type === 'FEEDS_REFRESH_TICK' && (settings?.backgroundSyncEnabled !== false)) {
           for (const f of feeds) {
             try { await refreshFeed(f.id); } catch {}
           }
         }
       });
     }
-  }, [feeds, refreshFeed]);
+  }, [feeds, refreshFeed, settings?.backgroundSyncEnabled]);
 }
