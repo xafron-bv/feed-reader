@@ -5,17 +5,22 @@ import { Text, View } from '@/components/Themed';
 import { useAppContext } from '@/context/AppContext';
 import { Article } from '@/lib/types';
 import { formatRelativeFromNow } from '@/lib/date';
+import { parseFeedText } from '@/lib/parser';
+import { mergeAndSaveArticles } from '@/lib/storage';
+import { articleIdFromLink } from '@/lib/hash';
+import { fetchTextWithCorsFallback } from '@/lib/net';
 
 export default function FeedArticlesScreen() {
   const params = useLocalSearchParams<{ id: string }>();
   const feedId = params.id;
-  const { getArticles, refreshFeed, getReadMarks, markAllInFeed } = useAppContext();
+  const { feeds, getArticles, refreshFeed, getReadMarks, markAllInFeed } = useAppContext();
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
   const [showOnlyUnread, setShowOnlyUnread] = useState(false);
   const [readMap, setReadMap] = useState<Record<string, boolean>>({});
+  const [loadingMore, setLoadingMore] = useState(false);
 
   const load = useCallback(async () => {
     if (!feedId) return;
@@ -43,6 +48,30 @@ export default function FeedArticlesScreen() {
     const latest = await refreshFeed(String(feedId));
     setArticles(latest);
     setRefreshing(false);
+  };
+
+  const onEndReached = async () => {
+    if (loadingMore) return;
+    const feed = feeds.find((f) => f.id === feedId);
+    const next = feed?.nextPageUrl;
+    if (!next) return;
+    try {
+      setLoadingMore(true);
+      const html = await fetchTextWithCorsFallback(next);
+      const parsed = await parseFeedText(html);
+      const more = parsed.map((p) => ({
+        id: articleIdFromLink(p.link),
+        feedId: String(feedId),
+        title: p.title,
+        content: p.content,
+        link: p.link,
+        pubDate: p.pubDate ? p.pubDate.toISOString() : undefined,
+        image: p.image,
+      }));
+      const merged = await mergeAndSaveArticles(String(feedId), more);
+      setArticles(merged);
+    } catch {}
+    finally { setLoadingMore(false); }
   };
 
   const filtered = articles.filter((a) => {
@@ -94,6 +123,8 @@ export default function FeedArticlesScreen() {
         renderItem={renderItem}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        onEndReachedThreshold={0.3}
+        onEndReached={onEndReached}
         testID="articles-list"
       />
     </View>

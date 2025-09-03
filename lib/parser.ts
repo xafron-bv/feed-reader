@@ -103,3 +103,16 @@ export async function getFeedInfo(feedText: string) {
   };
 }
 
+export function extractNextPageUrl(feedText: string): string | undefined {
+  // Try to find Atom rel="next" link
+  const regexes = [
+    /<link[^>]*rel=["']next["'][^>]*href=["']([^"']+)["'][^>]*>/i,
+    /<\w*:?link[^>]*href=["']([^"']+)["'][^>]*rel=["']next["'][^>]*>/i,
+  ];
+  for (const re of regexes) {
+    const m = re.exec(feedText);
+    if (m && m[1]) return m[1];
+  }
+  return undefined;
+}
+

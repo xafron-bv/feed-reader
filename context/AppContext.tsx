@@ -3,7 +3,7 @@ import { Article, Collection, FeedInfo, ParsedArticle, ReadMark, Settings } from
 import { addFeed as storageAddFeed, addOrUpdateCollection, aggregateCollectionArticles, getBookmarks, getCollections, getReadMarks as storageGetReadMarks, loadAllArticles, loadArticles as storageLoadArticles, loadCollectionArticles, loadSettings, loadState, markAllInFeed, markArticleRead, markArticleUnread, mergeAndSaveArticles, removeCollection, removeFeed as storageRemoveFeed, saveArticles as storageSaveArticles, saveCollections, saveSettings, saveState, toggleBookmark as storageToggleBookmark, updateLastSync } from '@/lib/storage';
 import { refreshAllFeeds } from '@/lib/refresh';
 import { feedIdFromUrl, articleIdFromLink } from '@/lib/hash';
-import { getFeedInfo, parseFeedText } from '@/lib/parser';
+import { extractNextPageUrl, getFeedInfo, parseFeedText } from '@/lib/parser';
 import { fetchTextWithCorsFallback } from '@/lib/net';
 
 type AppContextValue = {
@@ -56,6 +56,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       title: info.title,
       description: info.description,
       lastBuildDate: info.lastBuildDate ? info.lastBuildDate.toISOString() : undefined,
+      nextPageUrl: extractNextPageUrl(text),
     };
     await storageAddFeed(feed);
     setFeeds((prev) => {
@@ -90,6 +91,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const parsed = await parseFeedText(text);
     const newArticles = transformParsedArticlesToArticles(feedId, parsed);
     const merged = await mergeAndSaveArticles(feedId, newArticles);
+    // Update next page url if available
+    const next = extractNextPageUrl(text);
+    if (next) {
+      setFeeds((prev) => prev.map((f) => (f.id === feedId ? { ...f, nextPageUrl: next } : f)));
+      const state = await loadState();
+      const idx = state.feeds.findIndex((f) => f.id === feedId);
+      if (idx >= 0) { state.feeds[idx].nextPageUrl = next; await saveState(state); }
+    }
     return merged;
   }, [feeds]);
 
