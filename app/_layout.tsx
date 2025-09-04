@@ -6,7 +6,7 @@ import { AppProvider } from '@/context/AppContext';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { useAppContext } from '@/context/AppContext';
-import { registerBackgroundFetchAsync } from './background';
+import { registerBackgroundFetchAsync } from '@/lib/nativeBackground';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/components/useColorScheme';
