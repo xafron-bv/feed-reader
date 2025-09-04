@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, FlatList, Pressable, StyleSheet, TextInput, Image } from 'react-native';
+import { Alert, ActivityIndicator, FlatList, Pressable, StyleSheet, TextInput, Image } from 'react-native';
 import { Text, View } from '@/components/Themed';
 import { useAppContext } from '@/context/AppContext';
 import { FeedInfo } from '@/lib/types';
@@ -25,22 +25,32 @@ export default function FeedsScreen() {
     await removeFeed(feedId);
   };
 
-  const renderItem = ({ item }: { item: FeedInfo }) => (
-    <View style={styles.feedRow} testID="feed-row">
-      {item.faviconUrl ? (
-        <Image source={{ uri: item.faviconUrl }} style={styles.favicon} testID="feed-favicon" />
-      ) : null}
-      <Pressable accessibilityRole="button" testID="feed-open" onPress={() => router.push({ pathname: '/feed/[id]', params: { id: item.id } })} style={{ flex: 1 }}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.feedTitle}>{item.title ?? item.url}</Text>
-          {item.description ? (
-            <Text style={styles.feedDesc} numberOfLines={1}>{item.description}</Text>
-          ) : null}
+  const renderItem = ({ item }: { item: FeedInfo }) => {
+    if (item.isLoading) {
+      return (
+        <View style={styles.feedRow} testID="feed-row-loading">
+          <ActivityIndicator size="small" style={{ marginRight: 8 }} />
+          <Text style={styles.feedTitle}>Adding feed…</Text>
         </View>
-      </Pressable>
-      <Text style={styles.link} onPress={() => onDelete(item.id)}>Delete</Text>
-    </View>
-  );
+      );
+    }
+    return (
+      <View style={styles.feedRow} testID="feed-row">
+        {item.faviconUrl ? (
+          <Image source={{ uri: item.faviconUrl }} style={styles.favicon} testID="feed-favicon" />
+        ) : null}
+        <Pressable accessibilityRole="button" testID="feed-open" onPress={() => router.push({ pathname: '/feed/[id]', params: { id: item.id } })} style={{ flex: 1 }}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.feedTitle}>{item.title ?? item.url}</Text>
+            {item.description ? (
+              <Text style={styles.feedDesc} numberOfLines={1}>{item.description}</Text>
+            ) : null}
+          </View>
+        </Pressable>
+        <Text style={styles.link} onPress={() => onDelete(item.id)}>Delete</Text>
+      </View>
+    );
+  };
 
   return (
     <View style={styles.container}>

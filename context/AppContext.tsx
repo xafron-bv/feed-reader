@@ -79,6 +79,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const addFeedByUrl = useCallback(async (url: string) => {
     const id = feedIdFromUrl(url);
+    // Insert a temporary loading row immediately
+    setFeeds((prev) => {
+      const exists = prev.some((f) => f.id === id);
+      if (exists) return prev;
+      const loadingFeed: FeedInfo = { id, url, title: url, isLoading: true } as FeedInfo;
+      return [loadingFeed, ...prev];
+    });
     const text = await fetchText(url);
     const info = await getFeedInfo(text);
     // Try favicon discovery: fetch site HTML using feed link or derive from articles later
@@ -105,13 +112,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
     await storageAddFeed(feed);
     setFeeds((prev) => {
-      const existingIndex = prev.findIndex((f) => f.id === id);
-      if (existingIndex >= 0) {
-        const clone = prev.slice();
-        clone[existingIndex] = feed;
-        return clone;
-      }
-      return [feed, ...prev];
+      const filtered = prev.filter((f) => f.id !== id);
+      return [feed, ...filtered];
     });
 
     // Preload latest articles for offline use

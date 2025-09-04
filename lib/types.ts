@@ -17,6 +17,7 @@ export type FeedInfo = {
   nextPageUrl?: string;
   siteUrl?: string;
   faviconUrl?: string;
+  isLoading?: boolean;
 };
 
 export type Bookmark = {
