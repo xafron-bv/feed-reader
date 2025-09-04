@@ -31,15 +31,21 @@ export function useThemeColor(
 }
 
 export function Text(props: TextProps) {
-  const { style, lightColor, darkColor, ...otherProps } = props;
-  const color = useThemeColor({ light: lightColor, dark: darkColor }, 'text');
-
-  return <DefaultText style={[{ color }, style]} {...otherProps} />;
+  const p: any = props || {};
+  const color = useThemeColor({ light: p.lightColor, dark: p.darkColor }, 'text');
+  const otherProps: any = {};
+  for (const key in p) {
+    if (key !== 'lightColor' && key !== 'darkColor' && key !== 'style') otherProps[key] = p[key];
+  }
+  return <DefaultText style={[{ color }, p.style]} {...otherProps} />;
 }
 
 export function View(props: ViewProps) {
-  const { style, lightColor, darkColor, ...otherProps } = props;
-  const backgroundColor = useThemeColor({ light: lightColor, dark: darkColor }, 'background');
-
-  return <DefaultView style={[{ backgroundColor }, style]} {...otherProps} />;
+  const p: any = props || {};
+  const backgroundColor = useThemeColor({ light: p.lightColor, dark: p.darkColor }, 'background');
+  const otherProps: any = {};
+  for (const key in p) {
+    if (key !== 'lightColor' && key !== 'darkColor' && key !== 'style') otherProps[key] = p[key];
+  }
+  return <DefaultView style={[{ backgroundColor }, p.style]} {...otherProps} />;
 }
