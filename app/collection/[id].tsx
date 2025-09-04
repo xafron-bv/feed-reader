@@ -5,29 +5,26 @@ import { Text, View } from '@/components/Themed';
 import { useAppContext } from '@/context/AppContext';
 import { Article } from '@/lib/types';
 import { formatRelativeFromNow } from '@/lib/date';
-import { parseFeedText } from '@/lib/parser';
-import { mergeAndSaveArticles } from '@/lib/storage';
-import { articleIdFromLink } from '@/lib/hash';
-import { fetchTextWithCorsFallback } from '@/lib/net';
 
-export default function FeedArticlesScreen() {
+export default function CollectionArticlesScreen() {
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => { setHydrated(true); }, []);
   const params = useLocalSearchParams<{ id: string }>();
-  const feedId = params.id;
-  const { feeds, getArticles, refreshFeed, getReadMarks, markAllInFeed } = useAppContext();
+  const collectionId = params.id;
+  const { getCollectionArticles, getReadMarks } = useAppContext() as any;
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
   const [showOnlyUnread, setShowOnlyUnread] = useState(false);
   const [readMap, setReadMap] = useState<Record<string, boolean>>({});
-  const [loadingMore, setLoadingMore] = useState(false);
 
   const load = useCallback(async () => {
-    if (!feedId) return;
-    const list = await getArticles(String(feedId));
+    if (!collectionId) return;
+    const list = await getCollectionArticles(String(collectionId));
     setArticles(list);
     setLoading(false);
-  }, [feedId, getArticles]);
+  }, [collectionId, getCollectionArticles]);
 
   useEffect(() => {
     load();
@@ -43,53 +40,27 @@ export default function FeedArticlesScreen() {
   }, [articles]);
 
   const onRefresh = async () => {
-    if (!feedId) return;
     setRefreshing(true);
-    const latest = await refreshFeed(String(feedId));
-    setArticles(latest);
+    await load();
     setRefreshing(false);
-  };
-
-  const onEndReached = async () => {
-    if (loadingMore) return;
-    const feed = feeds.find((f) => f.id === feedId);
-    const next = feed?.nextPageUrl;
-    if (!next) return;
-    try {
-      setLoadingMore(true);
-      const html = await fetchTextWithCorsFallback(next);
-      const parsed = await parseFeedText(html);
-      const more = parsed.map((p) => ({
-        id: articleIdFromLink(p.link),
-        feedId: String(feedId),
-        title: p.title,
-        content: p.content,
-        link: p.link,
-        pubDate: p.pubDate ? p.pubDate.toISOString() : undefined,
-        image: p.image,
-      }));
-      const merged = await mergeAndSaveArticles(String(feedId), more);
-      setArticles(merged);
-    } catch {}
-    finally { setLoadingMore(false); }
   };
 
   const filtered = articles.filter((a) => {
     if (showOnlyUnread && readMap[a.id]) return false;
     const q = search.toLowerCase();
-    return a.title.toLowerCase().includes(q) || (a.content || '').toLowerCase().includes(q);
+    return a.title.toLowerCase().includes(q) || a.content.toLowerCase().includes(q);
   });
 
   const renderItem = ({ item }: { item: Article }) => (
     <Pressable onPress={() => router.push({ pathname: '/article', params: { id: item.id, feedId: item.feedId } })}>
-      <View style={[styles.row, readMap[item.id] ? styles.rowRead : null]} testID="article-row">
+      <View style={[styles.row, readMap[item.id] ? styles.rowRead : null]}>
         <Text style={[styles.title, readMap[item.id] ? styles.titleRead : null]} numberOfLines={2}>{item.title}</Text>
         <Text style={[styles.meta, readMap[item.id] ? styles.metaRead : null]}>{formatRelativeFromNow(item.pubDate)}</Text>
       </View>
     </Pressable>
   );
 
-  if (loading) {
+  if (!hydrated || loading) {
     return (
       <View style={styles.center}> 
         <ActivityIndicator />
@@ -109,13 +80,6 @@ export default function FeedArticlesScreen() {
         <Pressable accessibilityRole="button" onPress={() => setShowOnlyUnread((v) => !v)}>
           <Text style={styles.link}>{showOnlyUnread ? 'Show all' : 'Show unread'}</Text>
         </Pressable>
-        <View style={{ flex: 1 }} />
-        <Pressable accessibilityRole="button" onPress={() => feedId && markAllInFeed(String(feedId), true).then(load)}>
-          <Text style={styles.link}>Mark all read</Text>
-        </Pressable>
-        <Pressable accessibilityRole="button" onPress={() => feedId && markAllInFeed(String(feedId), false).then(load)}>
-          <Text style={styles.link}>Mark all unread</Text>
-        </Pressable>
       </View>
       <FlatList
         data={filtered}
@@ -123,9 +87,7 @@ export default function FeedArticlesScreen() {
         renderItem={renderItem}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        onEndReachedThreshold={0.3}
-        onEndReached={onEndReached}
-        testID="articles-list"
+        testID="collection-articles-list"
       />
     </View>
   );
@@ -145,4 +107,3 @@ const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   link: { color: '#007aff', paddingHorizontal: 8, paddingVertical: 4 },
 });
-

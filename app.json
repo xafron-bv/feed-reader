@@ -23,14 +23,31 @@
       },
       "edgeToEdgeEnabled": true
     },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-background-fetch",
+        {
+          "ios": {
+            "backgroundFetch": true
+          }
+        }
+      ]
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "UIBackgroundModes": ["fetch"]
+      }
+    },
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "serviceWorker": {
+        "src": "./worker.js"
+      }
     },
-    "plugins": [
-      "expo-router"
-    ],
     "experiments": {
       "typedRoutes": true
     }

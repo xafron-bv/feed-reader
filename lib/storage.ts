@@ -1,9 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Article, Bookmark, FeedInfo, StoredState } from './types';
+import { Article, Bookmark, Collection, FeedInfo, ReadMark, Settings, StoredState } from './types';
 
 const STORAGE_KEYS = {
   state: 'rss_reader_state_v1',
   articlesPrefix: 'rss_reader_articles_v1:', // + feedId
+  collectionArticlesPrefix: 'rss_reader_collection_articles_v1:', // + collectionId
 };
 
 async function readJson<T>(key: string, fallback: T): Promise<T> {
@@ -21,7 +22,15 @@ async function writeJson<T>(key: string, value: T): Promise<void> {
 }
 
 export async function loadState(): Promise<StoredState> {
-  return readJson<StoredState>(STORAGE_KEYS.state, { feeds: [], bookmarks: {} });
+  const state = await readJson<StoredState>(STORAGE_KEYS.state, { feeds: [], bookmarks: {}, reads: {}, collections: [], settings: { backgroundSyncEnabled: true, syncIntervalMinutes: 15 } });
+  // Harden against legacy states missing fields
+  (state as any).feeds = state.feeds ?? [];
+  (state as any).bookmarks = state.bookmarks ?? {};
+  (state as any).reads = state.reads ?? {};
+  (state as any).collections = state.collections ?? [];
+  const defaults: Settings = { backgroundSyncEnabled: true, syncIntervalMinutes: 15 } as Settings;
+  (state as any).settings = { ...defaults, ...(state.settings ?? {}) } as Settings;
+  return state;
 }
 
 export async function saveState(state: StoredState): Promise<void> {
@@ -34,6 +43,16 @@ export async function loadArticles(feedId: string): Promise<Article[]> {
 
 export async function saveArticles(feedId: string, articles: Article[]): Promise<void> {
   await writeJson(STORAGE_KEYS.articlesPrefix + feedId, articles);
+}
+
+export async function mergeAndSaveArticles(feedId: string, incoming: Article[]): Promise<Article[]> {
+  const existing = await loadArticles(feedId);
+  const mergedById = new Map<string, Article>();
+  for (const a of existing) mergedById.set(a.id, a);
+  for (const b of incoming) mergedById.set(b.id, b);
+  const merged = Array.from(mergedById.values()).sort((a, b) => (b.pubDate || '').localeCompare(a.pubDate || ''));
+  await saveArticles(feedId, merged);
+  return merged;
 }
 
 export async function addFeed(feed: FeedInfo): Promise<void> {
@@ -71,5 +90,110 @@ export async function toggleBookmark(article: Article): Promise<{ updated: Artic
 export async function getBookmarks(): Promise<Record<string, Bookmark>> {
   const state = await loadState();
   return state.bookmarks;
+}
+
+export async function markArticleRead(article: Article): Promise<void> {
+  const state = await loadState();
+  const mark: ReadMark = {
+    id: article.id,
+    feedId: article.feedId,
+    readAt: new Date().toISOString(),
+  };
+  state.reads[article.id] = mark;
+  await saveState(state);
+}
+
+export async function markArticleUnread(articleId: string): Promise<void> {
+  const state = await loadState();
+  delete state.reads[articleId];
+  await saveState(state);
+}
+
+export async function getReadMarks(): Promise<Record<string, ReadMark>> {
+  const state = await loadState();
+  return state.reads;
+}
+
+export async function markAllInFeed(feedId: string, read: boolean, articles?: Article[]): Promise<void> {
+  const state = await loadState();
+  if (read) {
+    const list = articles ?? (await loadArticles(feedId));
+    const now = new Date().toISOString();
+    for (const a of list) {
+      state.reads[a.id] = { id: a.id, feedId, readAt: now };
+    }
+  } else {
+    for (const [id, mark] of Object.entries(state.reads)) if (mark.feedId === feedId) delete state.reads[id];
+  }
+  await saveState(state);
+}
+
+export async function loadAllArticles(feeds: FeedInfo[]): Promise<Article[]> {
+  const all: Article[] = [];
+  for (const f of feeds) {
+    const items = await loadArticles(f.id);
+    all.push(...items);
+  }
+  return all.sort((a, b) => (b.pubDate || '').localeCompare(a.pubDate || ''));
+}
+
+export async function getCollections(): Promise<Collection[]> {
+  const state = await loadState();
+  return state.collections;
+}
+
+export async function saveCollections(collections: Collection[]): Promise<void> {
+  const state = await loadState();
+  state.collections = collections;
+  await saveState(state);
+}
+
+export async function addOrUpdateCollection(collection: Collection): Promise<void> {
+  const state = await loadState();
+  const idx = state.collections.findIndex((c) => c.id === collection.id);
+  if (idx >= 0) state.collections[idx] = collection; else state.collections.push(collection);
+  await saveState(state);
+}
+
+export async function removeCollection(collectionId: string): Promise<void> {
+  const state = await loadState();
+  state.collections = state.collections.filter((c) => c.id !== collectionId);
+  await saveState(state);
+}
+
+export async function loadSettings(): Promise<Settings> {
+  const state = await loadState();
+  return state.settings ?? { backgroundSyncEnabled: true, syncIntervalMinutes: 15 };
+}
+
+export async function saveSettings(settings: Settings): Promise<void> {
+  const state = await loadState();
+  state.settings = settings;
+  await saveState(state);
+}
+
+export async function updateLastSync(timestampIso: string): Promise<void> {
+  const state = await loadState();
+  state.settings = { ...(state.settings ?? { backgroundSyncEnabled: true, syncIntervalMinutes: 15 }), lastSyncAt: timestampIso };
+  await saveState(state);
+}
+
+export async function saveCollectionArticles(collectionId: string, articles: Article[]): Promise<void> {
+  await writeJson(STORAGE_KEYS.collectionArticlesPrefix + collectionId, articles);
+}
+
+export async function loadCollectionArticles(collectionId: string): Promise<Article[]> {
+  return readJson<Article[]>(STORAGE_KEYS.collectionArticlesPrefix + collectionId, []);
+}
+
+export async function aggregateCollectionArticles(collection: Collection): Promise<Article[]> {
+  const byLink = new Map<string, Article>();
+  for (const feedId of collection.feedIds) {
+    const items = await loadArticles(feedId);
+    for (const a of items) if (!byLink.has(a.link)) byLink.set(a.link, a);
+  }
+  const deduped = Array.from(byLink.values()).sort((a, b) => (b.pubDate || '').localeCompare(a.pubDate || ''));
+  await saveCollectionArticles(collection.id, deduped);
+  return deduped;
 }
 

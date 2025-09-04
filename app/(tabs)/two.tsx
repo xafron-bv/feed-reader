@@ -3,7 +3,7 @@ import { FlatList, StyleSheet } from 'react-native';
 import { Text, View } from '@/components/Themed';
 import { useAppContext } from '@/context/AppContext';
 import { Article } from '@/lib/types';
-import { Link } from 'expo-router';
+import { router } from 'expo-router';
 
 export default function BookmarksScreen() {
   const { getBookmarkedArticles } = useAppContext();
@@ -19,12 +19,10 @@ export default function BookmarksScreen() {
   }, []);
 
   const renderItem = ({ item }: { item: Article }) => (
-    <Link href={{ pathname: '/article', params: { id: item.id, feedId: item.feedId } }} asChild>
-      <View style={styles.row}>
-        <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
-        <Text style={styles.desc} numberOfLines={1}>{item.link}</Text>
-      </View>
-    </Link>
+    <View style={styles.row}>
+      <Text style={styles.title} numberOfLines={2} onPress={() => router.push({ pathname: '/article', params: { id: item.id, feedId: item.feedId } })}>{item.title}</Text>
+      <Text style={styles.desc} numberOfLines={1}>{item.link}</Text>
+    </View>
   );
 
   return (

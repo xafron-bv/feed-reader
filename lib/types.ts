@@ -14,6 +14,7 @@ export type FeedInfo = {
   title?: string;
   description?: string;
   lastBuildDate?: string; // ISO string
+  nextPageUrl?: string;
 };
 
 export type Bookmark = {
@@ -25,6 +26,9 @@ export type Bookmark = {
 export type StoredState = {
   feeds: FeedInfo[];
   bookmarks: Record<string, Bookmark>; // id -> bookmark
+  reads: Record<string, ReadMark>; // id -> read mark
+  collections: Collection[];
+  settings?: Settings;
 };
 
 export type ParsedArticle = {
@@ -33,5 +37,24 @@ export type ParsedArticle = {
   link: string;
   pubDate?: Date;
   image?: string;
+};
+
+export type ReadMark = {
+  id: string; // article id
+  feedId: string;
+  readAt: string; // ISO string
+};
+
+export type Collection = {
+  id: string;
+  name: string;
+  feedIds: string[];
+  createdAt: string; // ISO string
+};
+
+export type Settings = {
+  backgroundSyncEnabled: boolean;
+  lastSyncAt?: string; // ISO
+  syncIntervalMinutes?: number; // default 15
 };
 

@@ -3,11 +3,13 @@ import { Alert, FlatList, Pressable, StyleSheet, TextInput } from 'react-native'
 import { Text, View } from '@/components/Themed';
 import { useAppContext } from '@/context/AppContext';
 import { FeedInfo } from '@/lib/types';
-import { Link } from 'expo-router';
+import { Link, router } from 'expo-router';
 
 export default function FeedsScreen() {
-  const { feeds, addFeedByUrl, removeFeed } = useAppContext();
+  const { feeds, addFeedByUrl, removeFeed, refreshFeed } = useAppContext();
+  const { settings } = useAppContext() as any;
   const [newFeedUrl, setNewFeedUrl] = useState('');
+  usePeriodicRefresh();
 
   const onAdd = async () => {
     if (!newFeedUrl.trim()) return;
@@ -25,14 +27,14 @@ export default function FeedsScreen() {
 
   const renderItem = ({ item }: { item: FeedInfo }) => (
     <View style={styles.feedRow} testID="feed-row">
-      <Link href={{ pathname: '/feed/[id]', params: { id: item.id } }} asChild>
+      <Pressable accessibilityRole="button" testID="feed-open" onPress={() => router.push({ pathname: '/feed/[id]', params: { id: item.id } })} style={{ flex: 1 }}>
         <View style={{ flex: 1 }}>
           <Text style={styles.feedTitle}>{item.title ?? item.url}</Text>
           {item.description ? (
             <Text style={styles.feedDesc} numberOfLines={1}>{item.description}</Text>
           ) : null}
         </View>
-      </Link>
+      </Pressable>
       <Text style={styles.link} onPress={() => onDelete(item.id)}>Delete</Text>
     </View>
   );
@@ -63,6 +65,18 @@ export default function FeedsScreen() {
       />
     </View>
   );
+}
+
+function usePeriodicRefresh() {
+  const { feeds, refreshFeed } = useAppContext();
+  const { settings } = useAppContext() as any;
+  useEffect(() => {
+    const minutes = Math.max(1, Math.floor(settings?.syncIntervalMinutes ?? 15));
+    const id = setInterval(() => {
+      if (settings?.backgroundSyncEnabled !== false) feeds.forEach((f) => refreshFeed(f.id).catch(() => {}));
+    }, minutes * 60 * 1000);
+    return () => clearInterval(id);
+  }, [feeds, refreshFeed, settings?.backgroundSyncEnabled, settings?.syncIntervalMinutes]);
 }
 
 const styles = StyleSheet.create({

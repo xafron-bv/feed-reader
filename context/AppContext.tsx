@@ -1,42 +1,48 @@
 import React, { createContext, useCallback, useEffect, useMemo, useState } from 'react';
-import { Article, FeedInfo, ParsedArticle } from '@/lib/types';
-import { addFeed as storageAddFeed, getBookmarks, loadArticles as storageLoadArticles, loadState, removeFeed as storageRemoveFeed, saveArticles as storageSaveArticles, saveState, toggleBookmark as storageToggleBookmark } from '@/lib/storage';
+import { Article, Collection, FeedInfo, ParsedArticle, ReadMark, Settings } from '@/lib/types';
+import { addFeed as storageAddFeed, addOrUpdateCollection, aggregateCollectionArticles, getBookmarks, getCollections, getReadMarks as storageGetReadMarks, loadAllArticles, loadArticles as storageLoadArticles, loadCollectionArticles, loadSettings, loadState, markAllInFeed, markArticleRead, markArticleUnread, mergeAndSaveArticles, removeCollection, removeFeed as storageRemoveFeed, saveArticles as storageSaveArticles, saveCollections, saveSettings, saveState, toggleBookmark as storageToggleBookmark, updateLastSync } from '@/lib/storage';
+import { refreshAllFeeds } from '@/lib/refresh';
 import { feedIdFromUrl, articleIdFromLink } from '@/lib/hash';
-import { getFeedInfo, parseFeedText } from '@/lib/parser';
+import { extractNextPageUrl, getFeedInfo, parseFeedText } from '@/lib/parser';
+import { fetchTextWithCorsFallback } from '@/lib/net';
 
 type AppContextValue = {
   feeds: FeedInfo[];
+  collections: Collection[];
+  settings: Settings;
+  setSettings: (s: Settings) => Promise<void>;
   addFeedByUrl: (url: string) => Promise<void>;
   removeFeed: (feedId: string) => Promise<void>;
   getArticles: (feedId: string) => Promise<Article[]>;
   refreshFeed: (feedId: string) => Promise<Article[]>;
+  syncAll: () => Promise<void>;
   toggleBookmark: (article: Article) => Promise<boolean>;
   getBookmarkedArticles: () => Promise<Article[]>;
+  isArticleRead: (articleId: string) => Promise<boolean>;
+  setArticleRead: (article: Article, read: boolean) => Promise<void>;
+  markAllInFeed: (feedId: string, read: boolean) => Promise<void>;
+  getReadMarks: () => Promise<Record<string, ReadMark>>;
+  getAllArticles: () => Promise<Article[]>;
+  addOrUpdateCollection: (c: Collection) => Promise<void>;
+  removeCollection: (id: string) => Promise<void>;
+  getCollectionArticles: (collectionId: string) => Promise<Article[]>;
 };
 
 export const AppContext = createContext<AppContextValue | undefined>(undefined);
 
-async function fetchText(url: string): Promise<string> {
-  try {
-    const res = await fetch(url);
-    if (res.ok) return await res.text();
-    throw new Error(`HTTP ${res.status}`);
-  } catch (_err) {
-    // Fallback for web CORS: use AllOrigins proxy
-    const proxied = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-    const resp = await fetch(proxied);
-    if (!resp.ok) throw new Error('Failed to fetch feed');
-    return await resp.text();
-  }
-}
+async function fetchText(url: string): Promise<string> { return fetchTextWithCorsFallback(url); }
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [feeds, setFeeds] = useState<FeedInfo[]>([]);
+  const [collectionsState, setCollectionsState] = useState<Collection[]>([]);
+  const [settings, setSettingsState] = useState<Settings>({ backgroundSyncEnabled: true });
 
   useEffect(() => {
     (async () => {
       const state = await loadState();
       setFeeds(state.feeds);
+      setCollectionsState(state.collections ?? []);
+      setSettingsState(state.settings ?? { backgroundSyncEnabled: true });
     })();
   }, []);
 
@@ -50,6 +56,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       title: info.title,
       description: info.description,
       lastBuildDate: info.lastBuildDate ? info.lastBuildDate.toISOString() : undefined,
+      nextPageUrl: extractNextPageUrl(text),
     };
     await storageAddFeed(feed);
     setFeeds((prev) => {
@@ -83,8 +90,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const text = await fetchText(feed.url);
     const parsed = await parseFeedText(text);
     const newArticles = transformParsedArticlesToArticles(feedId, parsed);
-    await storageSaveArticles(feedId, newArticles);
-    return newArticles;
+    const merged = await mergeAndSaveArticles(feedId, newArticles);
+    // Update next page url if available
+    const next = extractNextPageUrl(text);
+    if (next) {
+      setFeeds((prev) => prev.map((f) => (f.id === feedId ? { ...f, nextPageUrl: next } : f)));
+      const state = await loadState();
+      const idx = state.feeds.findIndex((f) => f.id === feedId);
+      if (idx >= 0) { state.feeds[idx].nextPageUrl = next; await saveState(state); }
+    }
+    return merged;
+  }, [feeds]);
+
+  const syncAll = useCallback(async () => {
+    await refreshAllFeeds(feeds);
+    await updateLastSync(new Date().toISOString());
+    // refresh settings state
+    const s = await loadSettings();
+    setSettingsState(s);
   }, [feeds]);
 
   const toggleBookmark = useCallback(async (article: Article) => {
@@ -96,9 +119,27 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return result.bookmarked;
   }, []);
 
+  const isArticleRead = useCallback(async (articleId: string) => {
+    const reads = await storageGetReadMarks();
+    return !!reads[articleId];
+  }, []);
+
+  const setArticleReadCb = useCallback(async (article: Article, read: boolean) => {
+    if (read) await markArticleRead(article);
+    else await markArticleUnread(article.id);
+  }, []);
+
+  const markAllInFeedCb = useCallback(async (feedId: string, read: boolean) => {
+    await markAllInFeed(feedId, read);
+  }, []);
+
+  const getReadMarksCb = useCallback(async () => {
+    return await storageGetReadMarks();
+  }, []);
+
   const getBookmarkedArticles = useCallback(async () => {
     const bookmarks = await getBookmarks();
-    const bookmarkIds = new Set(Object.keys(bookmarks));
+    const bookmarkIds = new Set(Object.keys(bookmarks ?? {}));
     const all: Article[] = [];
     for (const feed of feeds) {
       const articles = await storageLoadArticles(feed.id);
@@ -107,17 +148,60 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return all.sort((a, b) => (b.pubDate || '').localeCompare(a.pubDate || ''));
   }, [feeds]);
 
+  const getAllArticlesCb = useCallback(async () => {
+    return await loadAllArticles(feeds);
+  }, [feeds]);
+
+  const setSettingsCb = useCallback(async (s: Settings) => {
+    await saveSettings(s);
+    setSettingsState(s);
+  }, []);
+
+  const addOrUpdateCollectionCb = useCallback(async (c: Collection) => {
+    await addOrUpdateCollection(c);
+    const list = await getCollections();
+    setCollectionsState(list);
+  }, []);
+
+  const removeCollectionCb = useCallback(async (id: string) => {
+    await removeCollection(id);
+    const list = await getCollections();
+    setCollectionsState(list);
+  }, []);
+
+  const getCollectionArticlesCb = useCallback(async (collectionId: string) => {
+    const allCollections = await getCollections();
+    const col = allCollections.find((c) => c.id === collectionId);
+    if (!col) return [];
+    // Use cached aggregated if available; else compute and persist
+    const cached = await loadCollectionArticles(col.id);
+    if (cached.length > 0) return cached;
+    return await aggregateCollectionArticles(col);
+  }, []);
+
   const value = useMemo<AppContextValue>(
     () => ({
       feeds,
+      collections: collectionsState,
+      settings,
+      setSettings: setSettingsCb,
       addFeedByUrl,
       removeFeed,
       getArticles,
       refreshFeed,
+      syncAll,
       toggleBookmark,
       getBookmarkedArticles,
+      isArticleRead,
+      setArticleRead: setArticleReadCb,
+      markAllInFeed: markAllInFeedCb,
+      getReadMarks: getReadMarksCb,
+      getAllArticles: getAllArticlesCb,
+      addOrUpdateCollection: addOrUpdateCollectionCb,
+      removeCollection: removeCollectionCb,
+      getCollectionArticles: getCollectionArticlesCb,
     }),
-    [feeds, addFeedByUrl, removeFeed, getArticles, refreshFeed, toggleBookmark, getBookmarkedArticles]
+    [feeds, collectionsState, settings, setSettingsCb, addFeedByUrl, removeFeed, getArticles, refreshFeed, syncAll, toggleBookmark, getBookmarkedArticles, isArticleRead, setArticleReadCb, markAllInFeedCb, getReadMarksCb, getAllArticlesCb, addOrUpdateCollectionCb, removeCollectionCb, getCollectionArticlesCb]
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

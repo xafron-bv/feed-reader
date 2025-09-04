@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>HN Newest</title>
+    <link>https://news.ycombinator.com/</link>
+    <description>Newest links</description>
+    <item>
+      <title>Test Item A</title>
+      <link>https://example.com/a</link>
+      <description><![CDATA[<p>Content A</p>]]></description>
+      <pubDate>Wed, 01 Jan 2025 10:00:00 GMT</pubDate>
+    </item>
+  </channel>
+</rss>
