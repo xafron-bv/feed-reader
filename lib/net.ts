@@ -4,7 +4,8 @@ export async function fetchTextWithCorsFallback(url: string): Promise<string> {
     if (res.ok) return await res.text();
     throw new Error(`HTTP ${res.status}`);
   } catch (_err) {
-    const proxied = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+    const base = 'https://go.x2u.in/proxy?email=admin@xafron.nl&apiKey=0dd92037&url=';
+    const proxied = `${base}${encodeURIComponent(url)}`;
     const resp = await fetch(proxied);
     if (!resp.ok) throw new Error('Failed to fetch feed');
     return await resp.text();
