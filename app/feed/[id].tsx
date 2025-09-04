@@ -11,8 +11,8 @@ import { articleIdFromLink } from '@/lib/hash';
 import { fetchTextWithCorsFallback } from '@/lib/net';
 
 export default function FeedArticlesScreen() {
-  const params = useLocalSearchParams<{ id: string }>();
-  const feedId = params.id;
+  const params = useLocalSearchParams() as Record<string, string>;
+  const feedId = params?.id;
   const { feeds, getArticles, refreshFeed, getReadMarks, markAllInFeed } = useAppContext();
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);

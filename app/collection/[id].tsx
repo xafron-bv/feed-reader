@@ -9,8 +9,8 @@ import { formatRelativeFromNow } from '@/lib/date';
 export default function CollectionArticlesScreen() {
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => { setHydrated(true); }, []);
-  const params = useLocalSearchParams<{ id: string }>();
-  const collectionId = params.id;
+  const params = useLocalSearchParams() as Record<string, string>;
+  const collectionId = params?.id;
   const { getCollectionArticles, getReadMarks } = useAppContext() as any;
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
