@@ -15,6 +15,8 @@ export type FeedInfo = {
   description?: string;
   lastBuildDate?: string; // ISO string
   nextPageUrl?: string;
+  siteUrl?: string;
+  faviconUrl?: string;
 };
 
 export type Bookmark = {

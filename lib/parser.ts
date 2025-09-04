@@ -92,6 +92,7 @@ export async function getFeedInfo(feedText: string) {
   return {
     title: feedInfo.title,
     description: feedInfo.description,
+    link: feedInfo.link,
     lastBuildDate: convertDateStringToDate(lastBuild),
   };
 }

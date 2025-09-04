@@ -9,4 +9,7 @@ Cypress.Commands.add('stubHnRss', () => {
   // AllOrigins fallback
   cy.intercept('GET', 'https://api.allorigins.win/raw?*hnrss.org/newest*', { fixture: 'hn-newest.xml' }).as('hnNewestAlt');
   cy.intercept('GET', 'https://api.allorigins.win/raw?*hnrss.org/frontpage*', { fixture: 'hn-frontpage.xml' }).as('hnFrontAlt');
+  // Site homepage for favicon discovery
+  cy.intercept('GET', 'https://news.ycombinator.com/', { fixture: 'hn-home.html', headers: { 'content-type': 'text/html' } }).as('hnHome');
+  cy.intercept('GET', 'https://api.allorigins.win/raw?*news.ycombinator.com*', { fixture: 'hn-home.html', headers: { 'content-type': 'text/html' } }).as('hnHomeAlt');
 });

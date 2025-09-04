@@ -1,5 +1,6 @@
 import { describe, it, expect } from '@jest/globals';
 import { parseFeedText, rssToArticles } from '@/lib/parser';
+import { extractFaviconFromHtml } from '@/lib/site';
 
 const sampleFeed = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0">
@@ -23,6 +24,15 @@ describe('parser', () => {
     expect(articles[0].title).toContain('Post 1');
     expect(articles[0].link).toContain('post-1');
     expect(typeof articles[0].content).toBe('string');
+  });
+
+  it('extracts favicon from HTML head', () => {
+    const html = `<!DOCTYPE html><html><head>
+      <link rel="icon" href="/favicon.ico" />
+    </head><body></body></html>`;
+    const base = 'https://example.com/some/page';
+    const fav = extractFaviconFromHtml(html, base);
+    expect(fav).toBe('https://example.com/favicon.ico');
   });
 });
 

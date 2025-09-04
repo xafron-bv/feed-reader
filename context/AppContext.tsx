@@ -4,6 +4,7 @@ import { addFeed as storageAddFeed, addOrUpdateCollection, aggregateCollectionAr
 import { refreshAllFeeds } from '@/lib/refresh';
 import { feedIdFromUrl, articleIdFromLink } from '@/lib/hash';
 import { extractNextPageUrl, getFeedInfo, parseFeedText } from '@/lib/parser';
+import { extractFaviconFromHtml } from '@/lib/site';
 import { fetchTextWithCorsFallback } from '@/lib/net';
 
 type AppContextValue = {
@@ -50,11 +51,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const id = feedIdFromUrl(url);
     const text = await fetchText(url);
     const info = await getFeedInfo(text);
+    // Try favicon discovery: fetch site HTML using feed link or derive from articles later
+    let faviconUrl: string | undefined;
+    let siteUrl: string | undefined = info.link;
+    try {
+      if (info.link) {
+        const html = await fetchText(info.link);
+        faviconUrl = extractFaviconFromHtml(html, info.link);
+      }
+    } catch {}
     const feed: FeedInfo = {
       id,
       url,
       title: info.title,
       description: info.description,
+      siteUrl,
+      faviconUrl,
       lastBuildDate: info.lastBuildDate ? info.lastBuildDate.toISOString() : undefined,
       nextPageUrl: extractNextPageUrl(text),
     };

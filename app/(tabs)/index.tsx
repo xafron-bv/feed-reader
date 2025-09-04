@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, FlatList, Pressable, StyleSheet, TextInput } from 'react-native';
+import { Alert, FlatList, Pressable, StyleSheet, TextInput, Image } from 'react-native';
 import { Text, View } from '@/components/Themed';
 import { useAppContext } from '@/context/AppContext';
 import { FeedInfo } from '@/lib/types';
@@ -27,6 +27,9 @@ export default function FeedsScreen() {
 
   const renderItem = ({ item }: { item: FeedInfo }) => (
     <View style={styles.feedRow} testID="feed-row">
+      {item.faviconUrl ? (
+        <Image source={{ uri: item.faviconUrl }} style={styles.favicon} testID="feed-favicon" />
+      ) : null}
       <Pressable accessibilityRole="button" testID="feed-open" onPress={() => router.push({ pathname: '/feed/[id]', params: { id: item.id } })} style={{ flex: 1 }}>
         <View style={{ flex: 1 }}>
           <Text style={styles.feedTitle}>{item.title ?? item.url}</Text>
@@ -85,6 +88,7 @@ const styles = StyleSheet.create({
   input: { flex: 1, borderWidth: 1, borderColor: '#ccc', borderRadius: 6, paddingHorizontal: 10, height: 40 },
   addButton: { color: '#007aff', paddingHorizontal: 8, paddingVertical: 8 },
   feedRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10 },
+  favicon: { width: 20, height: 20, marginRight: 8, borderRadius: 4 },
   feedTitle: { fontSize: 16, fontWeight: '600' },
   feedDesc: { color: '#666' },
   separator: { height: 1, backgroundColor: '#eee' },
