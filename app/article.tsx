@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useRoute } from '@react-navigation/native';
+import { useLocalSearchParams } from 'expo-router';
 import { ScrollView, StyleSheet, useWindowDimensions, Image, Pressable } from 'react-native';
 import RenderHTML from 'react-native-render-html';
 import { Text, View } from '@/components/Themed';
@@ -8,8 +8,11 @@ import { Article } from '@/lib/types';
 import { formatRelativeFromNow } from '@/lib/date';
 
 export default function ArticleScreen() {
-  const route = useRoute();
-  const params = ((route as any)?.params || {}) as Partial<Record<'id' | 'feedId', string>>;
+  const raw = useLocalSearchParams();
+  const params = {
+    id: raw?.id ? String(raw.id) : undefined,
+    feedId: raw?.feedId ? String(raw.feedId) : undefined,
+  } as Partial<Record<'id' | 'feedId', string>>;
   const { getArticles, toggleBookmark, setArticleRead } = useAppContext();
   const [article, setArticle] = useState<Article | undefined>(undefined);
   const { width } = useWindowDimensions();
