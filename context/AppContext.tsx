@@ -44,6 +44,36 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setFeeds(state.feeds);
       setCollectionsState(state.collections ?? []);
       setSettingsState(state.settings ?? { backgroundSyncEnabled: true });
+      // Backfill missing favicons for existing feeds
+      try {
+        const updates: FeedInfo[] = [];
+        for (const f of state.feeds ?? []) {
+          if (f.faviconUrl) continue;
+          let siteUrl = f.siteUrl;
+          try {
+            if (!siteUrl) {
+              // Try to resolve site link from the feed XML
+              const feedXml = await fetchText(f.url);
+              const info = await getFeedInfo(feedXml);
+              siteUrl = info.link || siteUrl;
+            }
+            if (!siteUrl) {
+              // Fallback to origin of the feed URL
+              const u = new URL(f.url);
+              siteUrl = `${u.origin}/`;
+            }
+            // Attempt favicon extraction
+            const html = await fetchText(siteUrl);
+            const fav = extractFaviconFromHtml(html, siteUrl);
+            if (fav) updates.push({ ...f, siteUrl, faviconUrl: fav });
+          } catch {}
+        }
+        if (updates.length > 0) {
+          const nextFeeds = (state.feeds ?? []).map((old) => updates.find((u) => u.id === old.id) || old);
+          setFeeds(nextFeeds);
+          await saveState({ ...state, feeds: nextFeeds });
+        }
+      } catch {}
     })();
   }, []);
 
@@ -54,10 +84,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     // Try favicon discovery: fetch site HTML using feed link or derive from articles later
     let faviconUrl: string | undefined;
     let siteUrl: string | undefined = info.link;
+    if (!siteUrl) {
+      try { const u = new URL(url); siteUrl = `${u.origin}/`; } catch {}
+    }
     try {
-      if (info.link) {
-        const html = await fetchText(info.link);
-        faviconUrl = extractFaviconFromHtml(html, info.link);
+      if (siteUrl) {
+        const html = await fetchText(siteUrl);
+        faviconUrl = extractFaviconFromHtml(html, siteUrl);
       }
     } catch {}
     const feed: FeedInfo = {
