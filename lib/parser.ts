@@ -1,4 +1,4 @@
-import ParserModule from 'rss-parser';
+import { XMLParser } from 'fast-xml-parser';
 import { ParsedArticle } from './types';
 import { convertDateStringToDate } from './date';
 
@@ -23,14 +23,8 @@ type RSSItem = {
 };
 
 export async function parseFeedText(feedText: string): Promise<ParsedArticle[]> {
-  const rssParser = new ParserModule<RSSFeed, RSSItem>({
-    customFields: {
-      feed: ['image'],
-      item: ['image', 'content', 'contentSnippet', 'description', 'subtitle', 'summary'],
-    },
-  });
-  const rssFeed = await rssParser.parseString(feedText);
-  return rssToArticles(rssFeed.items);
+  const parsed = parseXmlToFeed(feedText);
+  return rssToArticles(parsed.items || []);
 }
 
 export function rssToArticles(rss: RSSItem[]): ParsedArticle[] {
@@ -85,8 +79,7 @@ function getSimilarField(item: RSSItem, field: string) {
 }
 
 export async function getFeedInfo(feedText: string) {
-  const rssParser = new ParserModule<RSSFeed, RSSItem>();
-  const feedInfo = await rssParser.parseString(feedText);
+  const feedInfo = parseXmlToFeed(feedText);
 
   const lastBuild =
     feedInfo.lastBuildDate ||
@@ -113,6 +106,111 @@ export function extractNextPageUrl(feedText: string): string | undefined {
     const m = re.exec(feedText);
     if (m && m[1]) return m[1];
   }
+  return undefined;
+}
+
+function parseXmlToFeed(feedText: string): RSSFeed {
+  const parser = new XMLParser({
+    ignoreAttributes: false,
+    attributeNamePrefix: '',
+    textNodeName: '#text',
+    allowBooleanAttributes: true,
+    parseTagValue: false,
+    parseAttributeValue: false,
+    trimValues: false,
+  });
+  const xml = parser.parse(feedText);
+
+  // RSS 2.0 shape: rss.channel.item[]
+  if (xml?.rss?.channel) {
+    const ch = xml.rss.channel;
+    const items = Array.isArray(ch.item) ? ch.item : ch.item ? [ch.item] : [];
+    return {
+      title: ch.title?.['#text'] ?? ch.title,
+      link: ch.link?.['#text'] ?? ch.link,
+      description: ch.description?.['#text'] ?? ch.description,
+      image: ch.image?.url?.['#text'] ?? ch.image?.url,
+      items: items.map(normalizeItem),
+      lastBuildDate: ch.lastBuildDate?.['#text'] ?? ch.lastBuildDate,
+      pubDate: ch.pubDate?.['#text'] ?? ch.pubDate,
+    } as RSSFeed;
+  }
+
+  // Atom shape: feed.entry[]
+  if (xml?.feed) {
+    const f = xml.feed;
+    const entries = Array.isArray(f.entry) ? f.entry : f.entry ? [f.entry] : [];
+    // Try to extract main link rel=self or alternate
+    const feedLink = pickAtomLinkHref(f.link);
+    return {
+      title: f.title?.['#text'] ?? f.title,
+      link: feedLink,
+      description: f.subtitle?.['#text'] ?? f.subtitle,
+      items: entries.map(normalizeItem),
+      updated: f.updated?.['#text'] ?? f.updated,
+      published: f.published?.['#text'] ?? f.published,
+      modified: f.modified?.['#text'] ?? f.modified,
+      issued: f.issued?.['#text'] ?? f.issued,
+      created: f.created?.['#text'] ?? f.created,
+    } as RSSFeed;
+  }
+
+  // Fallback: try to detect list of items generically
+  const possibleItems = xml?.channel?.item || xml?.items || [];
+  const items = Array.isArray(possibleItems) ? possibleItems : possibleItems ? [possibleItems] : [];
+  return { items: items.map(normalizeItem) } as RSSFeed;
+}
+
+function normalizeItem(raw: any): RSSItem {
+  // Prefer text node when present
+  const val = (v: any) => (v && typeof v === 'object' && '#text' in v ? v['#text'] : v);
+  const title = val(raw.title) ?? val(raw['media:title']);
+  const link = extractLink(raw);
+  const description = val(raw.description) ?? val(raw.summary) ?? val(raw.content) ?? val(raw.subtitle) ?? val(raw.contentSnippet);
+  const image = extractImage(raw);
+  const pubDate = val(raw.pubDate) ?? val(raw.updated) ?? val(raw.published) ?? val(raw.modified) ?? val(raw.issued) ?? val(raw.created);
+  const item: RSSItem = {
+    title,
+    link,
+    description,
+    image,
+    pubDate,
+    // keep originals too for flexible access
+    ...raw,
+  };
+  return item;
+}
+
+function extractLink(raw: any): string | undefined {
+  const val = (v: any) => (v && typeof v === 'object' && '#text' in v ? v['#text'] : v);
+  if (raw.link) {
+    if (Array.isArray(raw.link)) {
+      const firstHref = raw.link.find((l: any) => l.href)?.href || raw.link[0];
+      return val(firstHref);
+    }
+    if (typeof raw.link === 'object') return raw.link.href || val(raw.link);
+    return val(raw.link);
+  }
+  // Atom may use "id" as stable link
+  if (raw.id) return val(raw.id);
+  return undefined;
+}
+
+function pickAtomLinkHref(link: any): string | undefined {
+  if (!link) return undefined;
+  const arr = Array.isArray(link) ? link : [link];
+  const alt = arr.find((l) => l.rel === 'alternate' && l.href)?.href;
+  const self = arr.find((l) => l.rel === 'self' && l.href)?.href;
+  return alt || self || arr.find((l) => l.href)?.href;
+}
+
+function extractImage(raw: any): string | undefined {
+  const val = (v: any) => (v && typeof v === 'object' && '#text' in v ? v['#text'] : v);
+  if (raw.enclosure && (raw.enclosure.url || raw.enclosure.href)) return raw.enclosure.url || raw.enclosure.href;
+  if (raw['media:content'] && raw['media:content'].url) return raw['media:content'].url;
+  if (raw['media:thumbnail'] && raw['media:thumbnail'].url) return raw['media:thumbnail'].url;
+  if (raw.image && raw.image.url) return val(raw.image.url);
+  if (raw.image) return val(raw.image);
   return undefined;
 }
 

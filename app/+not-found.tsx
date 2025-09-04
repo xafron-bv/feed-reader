@@ -11,7 +11,7 @@ export default function NotFoundScreen() {
         <Text style={styles.title}>This screen doesn't exist.</Text>
 
         <View style={styles.link}>
-          <Link href="/">
+          <Link href="./">
             <Text style={styles.linkText}>Go to home screen!</Text>
           </Link>
         </View>

@@ -1,5 +1,6 @@
 {
   "expo": {
+    "entryPoint": "./index.js",
     "name": "rss-reader",
     "slug": "rss-reader",
     "version": "1.0.0",

@@ -1,3 +1,4 @@
+import 'react-native-url-polyfill/auto';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
@@ -6,7 +7,7 @@ import { AppProvider } from '@/context/AppContext';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { useAppContext } from '@/context/AppContext';
-import { registerBackgroundFetchAsync } from './background';
+import { registerBackgroundFetchAsync } from '@/lib/nativeBackground';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/components/useColorScheme';
@@ -76,7 +77,7 @@ function useRegisterServiceWorkerRefresh() {
     }
     if (process.env.NODE_ENV === 'production' && 'serviceWorker' in navigator) {
       // Register SW
-      const swPath = '/worker.js';
+      const swPath = './worker.js';
       navigator.serviceWorker.register(swPath).then((reg) => {
         // Send interval to SW
         const minutes = settings?.syncIntervalMinutes ?? 15;

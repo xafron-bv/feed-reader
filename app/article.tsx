@@ -8,7 +8,11 @@ import { Article } from '@/lib/types';
 import { formatRelativeFromNow } from '@/lib/date';
 
 export default function ArticleScreen() {
-  const params = useLocalSearchParams<Partial<{ id: string; feedId: string }>>();
+  const raw = useLocalSearchParams();
+  const params = {
+    id: raw?.id ? String(raw.id) : undefined,
+    feedId: raw?.feedId ? String(raw.feedId) : undefined,
+  } as Partial<Record<'id' | 'feedId', string>>;
   const { getArticles, toggleBookmark, setArticleRead } = useAppContext();
   const [article, setArticle] = useState<Article | undefined>(undefined);
   const { width } = useWindowDimensions();

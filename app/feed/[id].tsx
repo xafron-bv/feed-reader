@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { useLocalSearchParams, router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, TextInput, Pressable } from 'react-native';
 import { Text, View } from '@/components/Themed';
 import { useAppContext } from '@/context/AppContext';
@@ -11,8 +11,8 @@ import { articleIdFromLink } from '@/lib/hash';
 import { fetchTextWithCorsFallback } from '@/lib/net';
 
 export default function FeedArticlesScreen() {
-  const params = useLocalSearchParams<{ id: string }>();
-  const feedId = params.id;
+  const params = useLocalSearchParams();
+  const feedId = params?.id ? String(params.id) : undefined;
   const { feeds, getArticles, refreshFeed, getReadMarks, markAllInFeed } = useAppContext();
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
