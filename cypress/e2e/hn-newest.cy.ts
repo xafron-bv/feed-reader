@@ -11,6 +11,7 @@ describe('HN Newest feed e2e', () => {
     cy.findAllByTestId('feed-row').first().findByTestId('feed-open').click({ force: true });
 
     // Ensure the articles list appears and has at least one article
+    cy.findAllByTestId('router_error_message').should('have.length', 0);
     cy.findByTestId('articles-list', { timeout: 15000 });
     cy.findAllByTestId('article-row').first().click();
 

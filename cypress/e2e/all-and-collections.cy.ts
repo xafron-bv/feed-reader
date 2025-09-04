@@ -5,12 +5,12 @@ describe('All and Collections flows', () => {
     cy.findByTestId('feed-url-input').clear().type('https://hnrss.org/frontpage');
     cy.findByTestId('add-feed-button').click();
 
-    // Navigate directly to All route to avoid tab click flakiness
-    cy.visit('/all');
+    // Navigate to All via tab button to avoid SSR hydration issues
+    cy.contains('All').click();
 
-    // Expect list to load (All tab content mounts after clicking tab)
+    cy.findAllByTestId('router_error_message').should('have.length', 0);
     cy.findByTestId('all-articles-list', { timeout: 15000 });
-    cy.contains('Show unread').click(); // toggle unread filter (ok if no effect yet)
+    cy.contains('Show unread').click();
   });
 
   it('creates a collection and views its articles', () => {
@@ -21,21 +21,20 @@ describe('All and Collections flows', () => {
     cy.findByTestId('feed-url-input').clear().type('https://hnrss.org/newest');
     cy.findByTestId('add-feed-button').click();
 
-    // Go to Collections route directly
-    cy.visit('/collections');
+    // Go to Collections by clicking tab label
+    cy.contains('Collections').click();
 
     // Create a new collection
     cy.findByTestId('new-collection-button').click();
     cy.findByTestId('collection-name-input').type('HN');
-    // Select first available feed option
     cy.findAllByTestId('collection-feed-option').first().click({ force: true });
     cy.findByTestId('collection-save-button').click();
 
     // Open first collection row via Pressable
     cy.findAllByTestId('collection-row').first().click();
 
-    // Should see aggregated list (at least not crash)
-    cy.findByTestId('collection-articles-list');
+    cy.findAllByTestId('router_error_message').should('have.length', 0);
+    cy.findByTestId('collection-articles-list', { timeout: 15000 });
     cy.contains('Show unread').click();
   });
 });
