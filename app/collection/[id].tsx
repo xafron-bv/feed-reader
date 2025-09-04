@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { useLocalSearchParams, router } from 'expo-router';
+import { router } from 'expo-router';
+import { useRoute, RouteProp } from '@react-navigation/native';
 import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, TextInput, Pressable } from 'react-native';
 import { Text, View } from '@/components/Themed';
 import { useAppContext } from '@/context/AppContext';
@@ -9,8 +10,8 @@ import { formatRelativeFromNow } from '@/lib/date';
 export default function CollectionArticlesScreen() {
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => { setHydrated(true); }, []);
-  const params = useLocalSearchParams() as Record<string, string>;
-  const collectionId = params?.id;
+  const route = useRoute<RouteProp<Record<string, object | undefined>, string>>();
+  const collectionId = (route.params as any)?.id as string | undefined;
   const { getCollectionArticles, getReadMarks } = useAppContext() as any;
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
