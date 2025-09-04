@@ -76,7 +76,7 @@ function useRegisterServiceWorkerRefresh() {
     }
     if (process.env.NODE_ENV === 'production' && 'serviceWorker' in navigator) {
       // Register SW
-      const swPath = '/worker.js';
+      const swPath = './worker.js';
       navigator.serviceWorker.register(swPath).then((reg) => {
         // Send interval to SW
         const minutes = settings?.syncIntervalMinutes ?? 15;
