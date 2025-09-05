@@ -102,19 +102,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (!siteUrl) {
       try { const u = new URL(url); siteUrl = `${u.origin}/`; } catch {}
     }
+    // Fetch favicon once at add time; never retry later if it fails
     try {
       if (siteUrl) {
         const html = await fetchText(siteUrl);
-        faviconUrl = extractFaviconFromHtml(html, siteUrl);
+        faviconUrl = extractFaviconFromHtml(html, siteUrl) || null as any;
       }
-    } catch {}
+    } catch { faviconUrl = null as any; }
     const feed: FeedInfo = {
       id,
       url,
       title: info.title,
       description: info.description,
       siteUrl,
-      faviconUrl,
+      // Persist null to indicate we attempted and found none; undefined means unknown/unattempted
+      faviconUrl: faviconUrl ?? null as any,
       lastBuildDate: info.lastBuildDate ? info.lastBuildDate.toISOString() : undefined,
       nextPageUrl: extractNextPageUrl(text),
     };

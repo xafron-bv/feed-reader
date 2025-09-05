@@ -27,20 +27,23 @@ function buildProxyUrl(url: string): string {
 async function readAsTextOrInflate(resp: Response): Promise<string> {
   const contentType = resp.headers.get('content-type') || '';
   const contentEncoding = resp.headers.get('content-encoding') || '';
-  // If it's XML/HTML/text, prefer text()
-  if (/xml|html|text|json/i.test(contentType) && !/gzip|deflate|br/i.test(contentEncoding)) {
-    return await resp.text();
-  }
-  // Otherwise attempt to read as arrayBuffer and gunzip if needed
+  // Always read bytes first; detect gzip by magic or headers, else decode as UTF-8
   const buf = new Uint8Array(await resp.arrayBuffer());
-  try {
-    if (/gzip|application\/octet-stream|binary/i.test(contentEncoding + ' ' + contentType)) {
+  const looksGzip = buf.length > 2 && buf[0] === 0x1f && buf[1] === 0x8b;
+  const hintedGzip = /gzip/i.test(contentEncoding) || /application\/gzip|application\/octet-stream|binary/i.test(contentType);
+  if (looksGzip || hintedGzip) {
+    try {
       const { ungzip } = await import('pako');
       const out = ungzip(buf);
       return new TextDecoder('utf-8').decode(out);
-    }
-  } catch {}
-  // Fallback: try to decode raw bytes as UTF-8
+    } catch {}
+  }
+  // If headers clearly indicate text, return string as UTF-8
+  if (/xml|html|text|json/i.test(contentType) && !/br|deflate/i.test(contentEncoding)) {
+    try { return new TextDecoder('utf-8').decode(buf); } catch {}
+  }
+  // Last resort: try resp.text() (may work if browser transparently decoded)
+  try { return await resp.text(); } catch {}
   return new TextDecoder('utf-8').decode(buf);
 }
 
