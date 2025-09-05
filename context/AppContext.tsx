@@ -4,7 +4,6 @@ import { addFeed as storageAddFeed, addOrUpdateCollection, aggregateCollectionAr
 import { refreshAllFeeds } from '@/lib/refresh';
 import { feedIdFromUrl, articleIdFromLink } from '@/lib/hash';
 import { extractNextPageUrl, getFeedInfo, parseFeedText } from '@/lib/parser';
-import { extractFaviconFromHtml } from '@/lib/site';
 import { fetchTextWithCorsFallback } from '@/lib/net';
 
 type AppContextValue = {
@@ -45,36 +44,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setFeeds(state.feeds);
       setCollectionsState(state.collections ?? []);
       setSettingsState(state.settings ?? { backgroundSyncEnabled: true });
-      // Backfill missing favicons for existing feeds
-      try {
-        const updates: FeedInfo[] = [];
-        for (const f of state.feeds ?? []) {
-          if (f.faviconUrl) continue;
-          let siteUrl = f.siteUrl;
-          try {
-            if (!siteUrl) {
-              // Try to resolve site link from the feed XML
-              const feedXml = await fetchText(f.url);
-              const info = await getFeedInfo(feedXml);
-              siteUrl = info.link || siteUrl;
-            }
-            if (!siteUrl) {
-              // Fallback to origin of the feed URL
-              const u = new URL(f.url);
-              siteUrl = `${u.origin}/`;
-            }
-            // Attempt favicon extraction
-            const html = await fetchText(siteUrl);
-            const fav = extractFaviconFromHtml(html, siteUrl);
-            if (fav) updates.push({ ...f, siteUrl, faviconUrl: fav });
-          } catch {}
-        }
-        if (updates.length > 0) {
-          const nextFeeds = (state.feeds ?? []).map((old) => updates.find((u) => u.id === old.id) || old);
-          setFeeds(nextFeeds);
-          await saveState({ ...state, feeds: nextFeeds });
-        }
-      } catch {}
+      // Do not backfill favicons on startup to avoid homepage fetches
     })();
   }, []);
 
@@ -96,26 +66,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       throw e;
     }
     const info = await getFeedInfo(text);
-    // Try favicon discovery: fetch site HTML using feed link or derive from articles later
-    let faviconUrl: string | undefined;
+    // Derive favicon once without fetching homepage (proxy page size limits)
+    let faviconUrl: string | undefined | null = null;
     let siteUrl: string | undefined = info.link;
-    if (!siteUrl) {
-      try { const u = new URL(url); siteUrl = `${u.origin}/`; } catch {}
-    }
-    // Fetch favicon once at add time; never retry later if it fails
-    try {
-      if (siteUrl) {
-        const html = await fetchText(siteUrl);
-        faviconUrl = extractFaviconFromHtml(html, siteUrl) || null as any;
-      }
-    } catch { faviconUrl = null as any; }
+    let origin: string | undefined;
+    try { if (info.link) origin = new URL(info.link).origin; } catch {}
+    if (!origin) { try { origin = new URL(url).origin; } catch {} }
+    if (origin) faviconUrl = `${origin}/favicon.ico`;
     const feed: FeedInfo = {
       id,
       url,
       title: info.title,
       description: info.description,
       siteUrl,
-      // Persist null to indicate we attempted and found none; undefined means unknown/unattempted
       faviconUrl: faviconUrl ?? null as any,
       lastBuildDate: info.lastBuildDate ? info.lastBuildDate.toISOString() : undefined,
       nextPageUrl: extractNextPageUrl(text),
