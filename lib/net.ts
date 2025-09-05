@@ -30,11 +30,20 @@ async function readAsTextOrInflate(resp: Response): Promise<string> {
   // Always read bytes first; detect gzip by magic or headers, else decode as UTF-8
   const buf = new Uint8Array(await resp.arrayBuffer());
   const looksGzip = buf.length > 2 && buf[0] === 0x1f && buf[1] === 0x8b;
-  const hintedGzip = /gzip/i.test(contentEncoding) || /application\/gzip|application\/octet-stream|binary/i.test(contentType);
+  const looksZlib = buf.length > 2 && buf[0] === 0x78 && (buf[1] === 0x01 || buf[1] === 0x9c || buf[1] === 0xda);
+  const hintedGzip = /gzip/i.test(contentEncoding) || /application\/gzip/i.test(contentType);
+  const hintedDeflate = /deflate/i.test(contentEncoding);
   if (looksGzip || hintedGzip) {
     try {
       const { ungzip } = await import('pako');
       const out = ungzip(buf);
+      return new TextDecoder('utf-8').decode(out);
+    } catch {}
+  }
+  if (looksZlib || hintedDeflate) {
+    try {
+      const { inflate } = await import('pako');
+      const out = inflate(buf);
       return new TextDecoder('utf-8').decode(out);
     } catch {}
   }
