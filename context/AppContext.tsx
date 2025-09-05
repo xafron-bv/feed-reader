@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useEffect, useMemo, useState } from 'react';
 import { Article, Collection, FeedInfo, ParsedArticle, ReadMark, Settings } from '@/lib/types';
-import { addFeed as storageAddFeed, addOrUpdateCollection, aggregateCollectionArticles, getBookmarks, getCollections, getReadMarks as storageGetReadMarks, loadAllArticles, loadArticles as storageLoadArticles, loadCollectionArticles, loadSettings, loadState, markAllInFeed, markArticleRead, markArticleUnread, mergeAndSaveArticles, removeCollection, removeFeed as storageRemoveFeed, saveArticles as storageSaveArticles, saveCollections, saveSettings, saveState, toggleBookmark as storageToggleBookmark, updateLastSync } from '@/lib/storage';
+import { addFeed as storageAddFeed, addOrUpdateCollection, aggregateCollectionArticles, getBookmarks, getCollections, getReadMarks as storageGetReadMarks, loadAllArticles, loadArticles as storageLoadArticles, loadCollectionArticles, loadSettings, loadState, markAllInFeed, markArticleRead, markArticleUnread, mergeAndSaveArticles, removeCollection, removeFeed as storageRemoveFeed, saveArticles as storageSaveArticles, saveCollections, saveSettings, saveState, toggleBookmark as storageToggleBookmark, updateFeedInfo as storageUpdateFeedInfo, updateLastSync } from '@/lib/storage';
 import { refreshAllFeeds } from '@/lib/refresh';
 import { feedIdFromUrl, articleIdFromLink } from '@/lib/hash';
 import { extractNextPageUrl, getFeedInfo, parseFeedText } from '@/lib/parser';
@@ -13,6 +13,7 @@ type AppContextValue = {
   setSettings: (s: Settings) => Promise<void>;
   addFeedByUrl: (url: string) => Promise<void>;
   removeFeed: (feedId: string) => Promise<void>;
+  updateFeedInfo: (feedId: string, updates: Partial<FeedInfo>) => Promise<void>;
   getArticles: (feedId: string) => Promise<Article[]>;
   refreshFeed: (feedId: string) => Promise<Article[]>;
   syncAll: () => Promise<void>;
@@ -40,44 +41,72 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     (async () => {
       const state = await loadState();
-      setFeeds(state.feeds);
+      setFeeds((prev) => (prev && prev.length > 0 ? prev : (state.feeds || [])));
       setCollectionsState(state.collections ?? []);
       setSettingsState(state.settings ?? { backgroundSyncEnabled: true });
+      // Do not backfill favicons on startup to avoid homepage fetches
     })();
   }, []);
 
   const addFeedByUrl = useCallback(async (url: string) => {
     const id = feedIdFromUrl(url);
-    const text = await fetchText(url);
+    const placeholderId = `${id}:loading`;
+    // Insert a temporary loading row immediately
+    setFeeds((prev) => {
+      const exists = prev.some((f) => f.id === id || f.id === placeholderId);
+      if (exists) return prev;
+      const loadingFeed: FeedInfo = { id: placeholderId, url, title: url, isLoading: true } as FeedInfo;
+      return [loadingFeed, ...prev];
+    });
+    let text: string;
+    try {
+      text = await fetchText(url);
+    } catch (e: any) {
+      // Remove placeholder on error and rethrow
+      setFeeds((prev) => prev.filter((f) => f.id !== placeholderId && f.id !== id));
+      throw e;
+    }
     const info = await getFeedInfo(text);
+    // Derive favicon once without fetching homepage (proxy page size limits)
+    let faviconUrl: string | undefined | null = null;
+    let siteUrl: string | undefined = info.link;
+    let origin: string | undefined;
+    try { if (info.link) origin = new URL(info.link).origin; } catch {}
+    if (!origin) { try { origin = new URL(url).origin; } catch {} }
+    if (origin) faviconUrl = `${origin}/favicon.ico`;
     const feed: FeedInfo = {
       id,
       url,
       title: info.title,
       description: info.description,
+      siteUrl,
+      faviconUrl: faviconUrl ?? null as any,
       lastBuildDate: info.lastBuildDate ? info.lastBuildDate.toISOString() : undefined,
       nextPageUrl: extractNextPageUrl(text),
     };
     await storageAddFeed(feed);
     setFeeds((prev) => {
-      const existingIndex = prev.findIndex((f) => f.id === id);
-      if (existingIndex >= 0) {
-        const clone = prev.slice();
-        clone[existingIndex] = feed;
-        return clone;
-      }
-      return [feed, ...prev];
+      const filtered = prev.filter((f) => f.id !== placeholderId && f.id !== id);
+      return [feed, ...filtered];
     });
 
     // Preload latest articles for offline use
-    const parsed = await parseFeedText(text);
-    const articles = transformParsedArticlesToArticles(id, parsed);
-    await storageSaveArticles(id, articles);
+    try {
+      const parsed = await parseFeedText(text);
+      const articles = transformParsedArticlesToArticles(id, parsed);
+      await storageSaveArticles(id, articles);
+    } catch {}
   }, []);
 
   const removeFeed = useCallback(async (feedId: string) => {
     await storageRemoveFeed(feedId);
     setFeeds((prev) => prev.filter((f) => f.id !== feedId));
+  }, []);
+
+  const updateFeedInfo = useCallback(async (feedId: string, updates: Partial<FeedInfo>) => {
+    const updated = await storageUpdateFeedInfo(feedId, updates);
+    if (!updated) return;
+    setFeeds((prev) => prev.map((f) => (f.id === feedId ? updated : f)));
   }, []);
 
   const getArticles = useCallback(async (feedId: string) => {
@@ -187,6 +216,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setSettings: setSettingsCb,
       addFeedByUrl,
       removeFeed,
+      updateFeedInfo,
       getArticles,
       refreshFeed,
       syncAll,

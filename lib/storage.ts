@@ -69,6 +69,16 @@ export async function removeFeed(feedId: string): Promise<void> {
   await AsyncStorage.removeItem(STORAGE_KEYS.articlesPrefix + feedId);
 }
 
+export async function updateFeedInfo(feedId: string, updates: Partial<FeedInfo>): Promise<FeedInfo | undefined> {
+  const state = await loadState();
+  const idx = state.feeds.findIndex((f) => f.id === feedId);
+  if (idx < 0) return undefined;
+  const updated: FeedInfo = { ...state.feeds[idx], ...updates } as FeedInfo;
+  state.feeds[idx] = updated;
+  await saveState(state);
+  return updated;
+}
+
 export async function toggleBookmark(article: Article): Promise<{ updated: Article; bookmarked: boolean }>{
   const state = await loadState();
   const bookmarkId = article.id;

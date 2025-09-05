@@ -92,6 +92,7 @@ export async function getFeedInfo(feedText: string) {
   return {
     title: feedInfo.title,
     description: feedInfo.description,
+    link: feedInfo.link,
     lastBuildDate: convertDateStringToDate(lastBuild),
   };
 }
@@ -136,6 +137,21 @@ function parseXmlToFeed(feedText: string): RSSFeed {
     } as RSSFeed;
   }
 
+  // RSS 1.0 / RDF shape: rdf:RDF { channel, item[] }
+  const rdf = (xml && (xml.RDF || (xml as any)['rdf:RDF'])) as any;
+  if (rdf) {
+    const ch = Array.isArray(rdf.channel) ? rdf.channel[0] : rdf.channel;
+    const items = Array.isArray(rdf.item) ? rdf.item : rdf.item ? [rdf.item] : [];
+    return {
+      title: ch?.title?.['#text'] ?? ch?.title,
+      link: ch?.link?.['#text'] ?? ch?.link,
+      description: ch?.description?.['#text'] ?? ch?.description,
+      items: items.map(normalizeItem),
+      // RSS 1.0 may not have lastBuildDate; use dc:date if available
+      lastBuildDate: ch?.date?.['#text'] ?? ch?.date,
+    } as RSSFeed;
+  }
+
   // Atom shape: feed.entry[]
   if (xml?.feed) {
     const f = xml.feed;
@@ -164,9 +180,9 @@ function parseXmlToFeed(feedText: string): RSSFeed {
 function normalizeItem(raw: any): RSSItem {
   // Prefer text node when present
   const val = (v: any) => (v && typeof v === 'object' && '#text' in v ? v['#text'] : v);
-  const title = val(raw.title) ?? val(raw['media:title']);
-  const link = extractLink(raw);
-  const description = val(raw.description) ?? val(raw.summary) ?? val(raw.content) ?? val(raw.subtitle) ?? val(raw.contentSnippet);
+  const title = val(raw.title) ?? val(raw['media:title']) ?? val(raw['dc:title']);
+  const link = extractLink(raw) ?? val(raw['rdf:about']) ?? val(raw.about);
+  const description = val(raw.description) ?? val(raw.summary) ?? val(raw.content) ?? val(raw.subtitle) ?? val(raw.contentSnippet) ?? val(raw['dc:description']);
   const image = extractImage(raw);
   const pubDate = val(raw.pubDate) ?? val(raw.updated) ?? val(raw.published) ?? val(raw.modified) ?? val(raw.issued) ?? val(raw.created);
   const item: RSSItem = {
@@ -191,6 +207,8 @@ function extractLink(raw: any): string | undefined {
     if (typeof raw.link === 'object') return raw.link.href || val(raw.link);
     return val(raw.link);
   }
+  // Some RSS 1.0 items may use rdf:about as the canonical URL
+  if (raw['rdf:about']) return val(raw['rdf:about']);
   // Atom may use "id" as stable link
   if (raw.id) return val(raw.id);
   return undefined;
