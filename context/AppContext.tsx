@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useEffect, useMemo, useState } from 'react';
 import { Article, Collection, FeedInfo, ParsedArticle, ReadMark, Settings } from '@/lib/types';
-import { addFeed as storageAddFeed, addOrUpdateCollection, aggregateCollectionArticles, getBookmarks, getCollections, getReadMarks as storageGetReadMarks, loadAllArticles, loadArticles as storageLoadArticles, loadCollectionArticles, loadSettings, loadState, markAllInFeed, markArticleRead, markArticleUnread, mergeAndSaveArticles, removeCollection, removeFeed as storageRemoveFeed, saveArticles as storageSaveArticles, saveCollections, saveSettings, saveState, toggleBookmark as storageToggleBookmark, updateLastSync } from '@/lib/storage';
+import { addFeed as storageAddFeed, addOrUpdateCollection, aggregateCollectionArticles, getBookmarks, getCollections, getReadMarks as storageGetReadMarks, loadAllArticles, loadArticles as storageLoadArticles, loadCollectionArticles, loadSettings, loadState, markAllInFeed, markArticleRead, markArticleUnread, mergeAndSaveArticles, removeCollection, removeFeed as storageRemoveFeed, saveArticles as storageSaveArticles, saveCollections, saveSettings, saveState, toggleBookmark as storageToggleBookmark, updateFeedInfo as storageUpdateFeedInfo, updateLastSync } from '@/lib/storage';
 import { refreshAllFeeds } from '@/lib/refresh';
 import { feedIdFromUrl, articleIdFromLink } from '@/lib/hash';
 import { extractNextPageUrl, getFeedInfo, parseFeedText } from '@/lib/parser';
@@ -14,6 +14,7 @@ type AppContextValue = {
   setSettings: (s: Settings) => Promise<void>;
   addFeedByUrl: (url: string) => Promise<void>;
   removeFeed: (feedId: string) => Promise<void>;
+  updateFeedInfo: (feedId: string, updates: Partial<FeedInfo>) => Promise<void>;
   getArticles: (feedId: string) => Promise<Article[]>;
   refreshFeed: (feedId: string) => Promise<Article[]>;
   syncAll: () => Promise<void>;
@@ -127,6 +128,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setFeeds((prev) => prev.filter((f) => f.id !== feedId));
   }, []);
 
+  const updateFeedInfo = useCallback(async (feedId: string, updates: Partial<FeedInfo>) => {
+    const updated = await storageUpdateFeedInfo(feedId, updates);
+    if (!updated) return;
+    setFeeds((prev) => prev.map((f) => (f.id === feedId ? updated : f)));
+  }, []);
+
   const getArticles = useCallback(async (feedId: string) => {
     return await storageLoadArticles(feedId);
   }, []);
@@ -234,6 +241,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setSettings: setSettingsCb,
       addFeedByUrl,
       removeFeed,
+      updateFeedInfo,
       getArticles,
       refreshFeed,
       syncAll,

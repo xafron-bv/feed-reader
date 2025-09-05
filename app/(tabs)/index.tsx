@@ -1,14 +1,18 @@
-import React, { useEffect, useState } from 'react';
-import { Alert, ActivityIndicator, FlatList, Pressable, StyleSheet, TextInput, Image } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Alert, ActivityIndicator, FlatList, Pressable, StyleSheet, TextInput, Image, Modal, Text as RNText } from 'react-native';
 import { Text, View } from '@/components/Themed';
 import { useAppContext } from '@/context/AppContext';
 import { FeedInfo } from '@/lib/types';
 import { Link, router } from 'expo-router';
 
 export default function FeedsScreen() {
-  const { feeds, addFeedByUrl, removeFeed, refreshFeed } = useAppContext();
+  const { feeds, addFeedByUrl, removeFeed, refreshFeed, updateFeedInfo } = useAppContext() as any;
   const { settings } = useAppContext() as any;
   const [newFeedUrl, setNewFeedUrl] = useState('');
+  const [editMode, setEditMode] = useState(false);
+  const [editingFeed, setEditingFeed] = useState<FeedInfo | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editDesc, setEditDesc] = useState('');
   usePeriodicRefresh();
 
   const onAdd = async () => {
@@ -21,9 +25,28 @@ export default function FeedsScreen() {
     }
   };
 
-  const onDelete = async (feedId: string) => {
-    await removeFeed(feedId);
+  const onDelete = async (feedId: string) => { await removeFeed(feedId); };
+
+  const startLongPress = () => { setEditMode(true); };
+  const openEdit = (feed: FeedInfo) => {
+    if (!editMode) return;
+    setEditingFeed(feed);
+    setEditTitle(feed.title || '');
+    setEditDesc(feed.description || '');
   };
+  const saveEdit = async () => {
+    if (!editingFeed) return;
+    await updateFeedInfo(editingFeed.id, { title: editTitle || undefined, description: editDesc || undefined });
+    setEditingFeed(null);
+    setEditTitle('');
+    setEditDesc('');
+  };
+  const deleteFromEdit = async () => {
+    if (!editingFeed) return;
+    await removeFeed(editingFeed.id);
+    setEditingFeed(null);
+  };
+  const exitEditMode = () => setEditMode(false);
 
   const renderItem = ({ item }: { item: FeedInfo }) => {
     if (item.isLoading) {
@@ -35,11 +58,11 @@ export default function FeedsScreen() {
       );
     }
     return (
-      <View style={styles.feedRow} testID="feed-row">
+      <View style={styles.feedRow} testID="feed-row" onTouchStart={startLongPress} onStartShouldSetResponder={() => false}>
         {item.faviconUrl ? (
           <Image source={{ uri: item.faviconUrl }} style={styles.favicon} testID="feed-favicon" />
         ) : null}
-        <Pressable accessibilityRole="button" testID="feed-open" onPress={() => router.push({ pathname: '/feed/[id]', params: { id: item.id } })} style={{ flex: 1 }}>
+        <Pressable accessibilityRole="button" testID="feed-open" onPress={() => (editMode ? openEdit(item) : router.push({ pathname: '/feed/[id]', params: { id: item.id } }))} style={{ flex: 1 }}>
           <View style={{ flex: 1 }}>
             <Text style={styles.feedTitle}>{item.title ?? item.url}</Text>
             {item.description ? (
@@ -47,7 +70,6 @@ export default function FeedsScreen() {
             ) : null}
           </View>
         </Pressable>
-        <Text style={styles.link} onPress={() => onDelete(item.id)}>Delete</Text>
       </View>
     );
   };
@@ -67,6 +89,9 @@ export default function FeedsScreen() {
         <Pressable accessibilityRole="button" testID="add-feed-button" onPress={onAdd}>
           <Text style={styles.addButton}>Add</Text>
         </Pressable>
+        <Pressable accessibilityRole="button" testID="toggle-edit-mode" onPress={() => setEditMode((v) => !v)}>
+          <Text style={styles.addButton}>{editMode ? 'Done' : 'Edit'}</Text>
+        </Pressable>
       </View>
       <FlatList
         data={feeds}
@@ -76,6 +101,25 @@ export default function FeedsScreen() {
         ListEmptyComponent={<Text style={styles.empty}>Add a feed URL to begin</Text>}
         testID="feeds-list"
       />
+      {editMode ? (
+        <View style={styles.editBanner} testID="edit-mode-banner">
+          <Text style={styles.editBannerText}>Edit mode</Text>
+        </View>
+      ) : null}
+      <Modal transparent visible={!!editingFeed} animationType="fade">
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard} testID="feed-edit-modal">
+            <Text style={styles.modalTitle}>Edit feed</Text>
+            <TextInput placeholder="Title" value={editTitle} onChangeText={setEditTitle} style={styles.input} testID="feed-edit-title" />
+            <TextInput placeholder="Description" value={editDesc} onChangeText={setEditDesc} style={styles.input} testID="feed-edit-description" />
+            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 12 }}>
+              <Pressable onPress={() => setEditingFeed(null)}><Text style={styles.link}>Cancel</Text></Pressable>
+              <Pressable onPress={saveEdit}><Text style={styles.link} testID="feed-edit-save">Save</Text></Pressable>
+              <Pressable onPress={deleteFromEdit}><Text style={[styles.link, { color: '#ff3b30' }]} testID="feed-edit-delete">Delete</Text></Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -103,5 +147,10 @@ const styles = StyleSheet.create({
   feedDesc: { color: '#666' },
   separator: { height: 1, backgroundColor: '#eee' },
   empty: { textAlign: 'center', color: '#888', marginTop: 40 },
-  link: { color: '#ff3b30', paddingHorizontal: 8, paddingVertical: 8 },
+  link: { color: '#007aff', paddingHorizontal: 8, paddingVertical: 8 },
+  editBanner: { position: 'absolute', left: 0, right: 0, bottom: 0, padding: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderTopWidth: 1, borderColor: '#eee' },
+  editBannerText: { fontWeight: '600' },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center' },
+  modalCard: { width: '90%', maxWidth: 400, padding: 16, borderRadius: 8, backgroundColor: '#fff', gap: 8 },
+  modalTitle: { fontSize: 18, fontWeight: '700', marginBottom: 4 },
 });
