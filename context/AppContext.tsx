@@ -87,7 +87,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const loadingFeed: FeedInfo = { id, url, title: url, isLoading: true } as FeedInfo;
       return [loadingFeed, ...prev];
     });
-    const text = await fetchText(url);
+    let text: string;
+    try {
+      text = await fetchText(url);
+    } catch (e: any) {
+      // Remove placeholder on error and rethrow
+      setFeeds((prev) => prev.filter((f) => f.id !== id));
+      throw e;
+    }
     const info = await getFeedInfo(text);
     // Try favicon discovery: fetch site HTML using feed link or derive from articles later
     let faviconUrl: string | undefined;
@@ -118,9 +125,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
 
     // Preload latest articles for offline use
-    const parsed = await parseFeedText(text);
-    const articles = transformParsedArticlesToArticles(id, parsed);
-    await storageSaveArticles(id, articles);
+    try {
+      const parsed = await parseFeedText(text);
+      const articles = transformParsedArticlesToArticles(id, parsed);
+      await storageSaveArticles(id, articles);
+    } catch {}
   }, []);
 
   const removeFeed = useCallback(async (feedId: string) => {
