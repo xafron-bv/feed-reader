@@ -27,7 +27,6 @@ export default function FeedsScreen() {
 
   const onDelete = async (feedId: string) => { await removeFeed(feedId); };
 
-  const startLongPress = () => { setEditMode(true); };
   const openEdit = (feed: FeedInfo) => {
     if (!editMode) return;
     setEditingFeed(feed);
@@ -58,7 +57,7 @@ export default function FeedsScreen() {
       );
     }
     return (
-      <View style={styles.feedRow} testID="feed-row" onTouchStart={startLongPress} onStartShouldSetResponder={() => false}>
+      <View style={styles.feedRow} testID="feed-row">
         {item.faviconUrl ? (
           <Image source={{ uri: item.faviconUrl }} style={styles.favicon} testID="feed-favicon" />
         ) : null}
