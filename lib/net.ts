@@ -1,3 +1,4 @@
+import { ungzip, inflate } from 'pako';
 let corsBlockedPreference: boolean | null = null;
 
 function isCorsBlocked(): boolean {
@@ -67,14 +68,12 @@ async function readAsTextOrInflate(resp: Response, refetchUrl?: string): Promise
   const hintedDeflate = /deflate/i.test(contentEncoding);
   if (looksGzip || hintedGzip) {
     try {
-      const { ungzip } = await import('pako');
       const out = ungzip(buf);
       return new TextDecoder('utf-8').decode(out);
     } catch {}
   }
   if (looksZlib || hintedDeflate) {
     try {
-      const { inflate } = await import('pako');
       const out = inflate(buf);
       return new TextDecoder('utf-8').decode(out);
     } catch {}
