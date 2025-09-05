@@ -50,11 +50,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const addFeedByUrl = useCallback(async (url: string) => {
     const id = feedIdFromUrl(url);
+    const placeholderId = `${id}:loading`;
     // Insert a temporary loading row immediately
     setFeeds((prev) => {
-      const exists = prev.some((f) => f.id === id);
+      const exists = prev.some((f) => f.id === id || f.id === placeholderId);
       if (exists) return prev;
-      const loadingFeed: FeedInfo = { id, url, title: url, isLoading: true } as FeedInfo;
+      const loadingFeed: FeedInfo = { id: placeholderId, url, title: url, isLoading: true } as FeedInfo;
       return [loadingFeed, ...prev];
     });
     let text: string;
@@ -62,7 +63,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       text = await fetchText(url);
     } catch (e: any) {
       // Remove placeholder on error and rethrow
-      setFeeds((prev) => prev.filter((f) => f.id !== id));
+      setFeeds((prev) => prev.filter((f) => f.id !== placeholderId && f.id !== id));
       throw e;
     }
     const info = await getFeedInfo(text);
@@ -85,7 +86,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
     await storageAddFeed(feed);
     setFeeds((prev) => {
-      const filtered = prev.filter((f) => f.id !== id);
+      const filtered = prev.filter((f) => f.id !== placeholderId && f.id !== id);
       return [feed, ...filtered];
     });
 
