@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns="http://purl.org/rss/1.0/" xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <channel rdf:about="https://slashdot.org/">
+    <title>Slashdot</title>
+    <link>https://slashdot.org/</link>
+    <description>News for nerds</description>
+  </channel>
+  <item rdf:about="https://slashdot.org/story/1">
+    <title>Slash 1</title>
+    <link>https://slashdot.org/story/1</link>
+    <description><![CDATA[<p>Story 1</p>]]></description>
+  </item>
+  <item rdf:about="https://slashdot.org/story/2">
+    <title>Slash 2</title>
+    <link>https://slashdot.org/story/2</link>
+    <description><![CDATA[<p>Story 2</p>]]></description>
+  </item>
+</rdf:RDF>
+

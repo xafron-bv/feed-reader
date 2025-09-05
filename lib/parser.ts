@@ -140,7 +140,7 @@ function parseXmlToFeed(feedText: string): RSSFeed {
   // RSS 1.0 / RDF shape: rdf:RDF { channel, item[] }
   const rdf = (xml && (xml.RDF || (xml as any)['rdf:RDF'])) as any;
   if (rdf) {
-    const ch = rdf.channel;
+    const ch = Array.isArray(rdf.channel) ? rdf.channel[0] : rdf.channel;
     const items = Array.isArray(rdf.item) ? rdf.item : rdf.item ? [rdf.item] : [];
     return {
       title: ch?.title?.['#text'] ?? ch?.title,

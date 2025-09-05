@@ -24,10 +24,20 @@ function buildProxyUrl(url: string): string {
   return `${base}${encodeURIComponent(url)}`;
 }
 
+function looksLikeXmlOrHtml(s: string): boolean {
+  const t = (s || '').trimStart();
+  return t.startsWith('<');
+}
+
 async function readAsTextOrInflate(resp: Response): Promise<string> {
   const contentType = resp.headers.get('content-type') || '';
   const contentEncoding = resp.headers.get('content-encoding') || '';
-  // Always read bytes first; detect gzip by magic or headers, else decode as UTF-8
+  // First try plain text via clone (works when browser auto-decompressed)
+  try {
+    const pre = await resp.clone().text();
+    if (looksLikeXmlOrHtml(pre)) return pre;
+  } catch {}
+  // Always read bytes; detect gzip/deflate by magic or headers, else decode as UTF-8
   const buf = new Uint8Array(await resp.arrayBuffer());
   const looksGzip = buf.length > 2 && buf[0] === 0x1f && buf[1] === 0x8b;
   const looksZlib = buf.length > 2 && buf[0] === 0x78 && (buf[1] === 0x01 || buf[1] === 0x9c || buf[1] === 0xda);

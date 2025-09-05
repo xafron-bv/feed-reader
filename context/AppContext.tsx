@@ -41,7 +41,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     (async () => {
       const state = await loadState();
-      setFeeds(state.feeds);
+      setFeeds((prev) => (prev && prev.length > 0 ? prev : (state.feeds || [])));
       setCollectionsState(state.collections ?? []);
       setSettingsState(state.settings ?? { backgroundSyncEnabled: true });
       // Do not backfill favicons on startup to avoid homepage fetches
